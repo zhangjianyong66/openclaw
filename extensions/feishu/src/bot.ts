@@ -24,6 +24,7 @@ import {
   extractMessageBody,
   isMentionForwardRequest,
 } from "./mention.js";
+import { botOpenIds } from "./monitor.state.js";
 import {
   resolveFeishuGroupConfig,
   resolveFeishuReplyPolicy,
@@ -1147,6 +1148,32 @@ export async function handleFeishuMessage(params: {
       },
       parentPeer,
     });
+
+    // When sender is another bot in this gateway, add them to mentionTargets so our reply
+    // @mentions them — enables two-bot conversation (each reply notifies the other bot).
+    if (isGroup && ctx.senderOpenId) {
+      for (const [otherAccountId, otherBotOpenId] of botOpenIds) {
+        if (
+          otherAccountId !== account.accountId &&
+          otherBotOpenId &&
+          otherBotOpenId === ctx.senderOpenId
+        ) {
+          const existing = ctx.mentionTargets ?? [];
+          ctx.mentionTargets = [
+            ...existing,
+            {
+              openId: ctx.senderOpenId,
+              name: ctx.senderName ?? ctx.senderOpenId,
+              key: "",
+            },
+          ];
+          log(
+            `feishu[${account.accountId}]: sender is bot ${otherAccountId}, will @mention in reply`,
+          );
+          break;
+        }
+      }
+    }
 
     // Dynamic agent creation for DM users
     // When enabled, creates a unique agent instance with its own workspace for each DM user.
