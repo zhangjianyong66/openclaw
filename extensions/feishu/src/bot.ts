@@ -455,11 +455,14 @@ function formatSubMessageContent(content: string, contentType: string): string {
   }
 }
 
-function checkBotMentioned(event: FeishuMessageEvent, botOpenId?: string, botName?: string): boolean {
+function checkBotMentioned(
+  event: FeishuMessageEvent,
+  botOpenId?: string,
+  botName?: string,
+): boolean {
   if (!botOpenId) return false;
-  // Check for @all (@_all in Feishu) — treat as mentioning every bot
-  const rawContent = event.message.content ?? "";
-  if (rawContent.includes("@_all")) return true;
+  // Only consider this bot mentioned when it appears in the mention list (or post content).
+  // Do not treat @_all as "every bot is mentioned" — in multi-bot groups that causes all bots to reply.
   const mentions = event.message.mentions ?? [];
   if (mentions.length > 0) {
     return mentions.some((m) => {
