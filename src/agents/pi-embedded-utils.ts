@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { AssistantMessage } from "@mariozechner/pi-ai";
 import { extractTextFromChatContent } from "../shared/chat-content.js";
@@ -31,6 +32,77 @@ export function stripMinimaxToolCallXml(text: string): string {
   cleaned = cleaned.replace(/<\/?minimax:tool_call>/gi, "");
 
   return cleaned;
+}
+
+/**
+ * Parse <invoke name="...">...</invoke> blocks from Minimax-style XML (e.g. inside thinking).
+ * Returns tool name and arguments from <parameter name="...">value</parameter> for each invoke.
+ */
+export function parseMinimaxInvokeBlocksFromText(
+  text: string,
+): { name: string; arguments: Record<string, unknown> }[] {
+  if (!text || !/minimax:tool_call|<\/?invoke/i.test(text)) {
+    return [];
+  }
+  const invokes: { name: string; arguments: Record<string, unknown> }[] = [];
+  const invokeRe = /<invoke\s+name\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/invoke>/gi;
+  for (const m of text.matchAll(invokeRe)) {
+    const name = (m[1] ?? "").trim();
+    if (!name) {
+      continue;
+    }
+    const inner = m[2] ?? "";
+    const args: Record<string, unknown> = {};
+    const paramRe = /<parameter\s+name\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/parameter>/gi;
+    for (const p of inner.matchAll(paramRe)) {
+      const key = (p[1] ?? "").trim();
+      if (key) {
+        args[key] = (p[2] ?? "").trim();
+      }
+    }
+    invokes.push({ name, arguments: args });
+  }
+  return invokes;
+}
+
+/**
+ * When an assistant message has only thinking block(s) and no toolCall blocks, but the
+ * thinking content contains Minimax-style <invoke>...</invoke> XML, promote those to
+ * real toolCall blocks so the runner will execute them.
+ */
+export function promoteMinimaxToolCallsFromThinking(message: AssistantMessage): void {
+  if (!Array.isArray(message.content)) {
+    return;
+  }
+  const hasToolCall = message.content.some(
+    (b) => b && typeof b === "object" && b.type === "toolCall",
+  );
+  if (hasToolCall) {
+    return;
+  }
+  const thinkingText = extractAssistantThinking(message);
+  if (!thinkingText) {
+    return;
+  }
+  const invokes = parseMinimaxInvokeBlocksFromText(thinkingText);
+  if (invokes.length === 0) {
+    return;
+  }
+  const newBlocks: Array<{
+    type: "toolCall";
+    id: string;
+    name: string;
+    arguments: Record<string, unknown>;
+  }> = invokes.map(({ name, arguments: args }) => ({
+    type: "toolCall",
+    id: `call_${randomUUID()}`,
+    name,
+    arguments: args,
+  }));
+  message.content = [...message.content, ...newBlocks];
+  if (typeof (message as { stopReason?: string }).stopReason === "string") {
+    (message as { stopReason: string }).stopReason = "toolUse";
+  }
 }
 
 /**

@@ -15,7 +15,11 @@ import { getMachineDisplayName } from "../../infra/machine-name.js";
 import { generateSecureToken } from "../../infra/secure-random.js";
 import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
 import { type enqueueCommand, enqueueCommandInLane } from "../../process/command-queue.js";
-import { isCronSessionKey, isSubagentSessionKey } from "../../routing/session-key.js";
+import {
+  isCronSessionKey,
+  resolveAgentIdFromSessionKey,
+  isSubagentSessionKey,
+} from "../../routing/session-key.js";
 import { resolveSignalReactionLevel } from "../../signal/reaction-level.js";
 import { resolveTelegramInlineButtonsScope } from "../../telegram/inline-buttons.js";
 import { resolveTelegramReactionLevel } from "../../telegram/reaction-level.js";
@@ -625,7 +629,7 @@ export async function compactEmbeddedPiSessionDirect(
         // the compaction LLM call — no need to block or wait for after_compaction.
         const hookRunner = getGlobalHookRunner();
         const hookCtx = {
-          agentId: params.sessionKey?.split(":")[0] ?? "main",
+          agentId: resolveAgentIdFromSessionKey(params.sessionKey),
           sessionKey: params.sessionKey,
           sessionId: params.sessionId,
           workspaceDir: params.workspaceDir,

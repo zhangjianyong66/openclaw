@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   extractAssistantText,
   formatReasoningMessage,
+  parseMinimaxInvokeBlocksFromText,
+  promoteMinimaxToolCallsFromThinking,
   stripDowngradedToolCallText,
 } from "./pi-embedded-utils.js";
 
@@ -555,5 +557,94 @@ describe("empty input handling", () => {
     for (const helper of helpers) {
       expect(helper("")).toBe("");
     }
+  });
+});
+
+describe("parseMinimaxInvokeBlocksFromText", () => {
+  it("returns empty array when text has no invoke or minimax markers", () => {
+    expect(parseMinimaxInvokeBlocksFromText("")).toEqual([]);
+    expect(parseMinimaxInvokeBlocksFromText("plain text")).toEqual([]);
+  });
+
+  it("parses single invoke with parameters", () => {
+    const text = `<minimax:tool_call>
+<invoke name="exec">
+<parameter name="command">cd /tmp && ls</parameter>
+<parameter name="timeout">30</parameter>
+</invoke>
+</minimax:tool_call>`;
+    const out = parseMinimaxInvokeBlocksFromText(text);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.name).toBe("exec");
+    expect(out[0]?.arguments).toEqual({ command: "cd /tmp && ls", timeout: "30" });
+  });
+
+  it("parses multiple invokes", () => {
+    const text = `<invoke name="Read"><parameter name="path">a.txt</parameter></invoke>
+</minimax:tool_call>Second.<invoke name="Bash"><parameter name="command">pwd</parameter></invoke></minimax:tool_call>`;
+    const out = parseMinimaxInvokeBlocksFromText(text);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toEqual({ name: "Read", arguments: { path: "a.txt" } });
+    expect(out[1]).toEqual({ name: "Bash", arguments: { command: "pwd" } });
+  });
+});
+
+describe("promoteMinimaxToolCallsFromThinking", () => {
+  it("does nothing when message has no thinking blocks", () => {
+    const msg = makeAssistantMessage({
+      role: "assistant",
+      content: [{ type: "text", text: "Hello" }],
+      timestamp: Date.now(),
+    });
+    promoteMinimaxToolCallsFromThinking(msg);
+    expect(msg.content).toHaveLength(1);
+    expect((msg.content as { type: string }[])[0]?.type).toBe("text");
+  });
+
+  it("does nothing when message already has toolCall blocks", () => {
+    const msg = makeAssistantMessage({
+      role: "assistant",
+      content: [
+        {
+          type: "thinking",
+          thinking: `<invoke name="exec"><parameter name="command">ls</parameter></invoke></minimax:tool_call>`,
+        },
+        { type: "toolCall", id: "call_1", name: "exec", arguments: { command: "ls" } },
+      ],
+      timestamp: Date.now(),
+    });
+    promoteMinimaxToolCallsFromThinking(msg);
+    expect(msg.content).toHaveLength(2);
+  });
+
+  it("promotes invoke from thinking to toolCall blocks and sets stopReason", () => {
+    const msg = makeAssistantMessage({
+      role: "assistant",
+      content: [
+        {
+          type: "thinking",
+          thinking: `<minimax:tool_call><invoke name="exec">
+<parameter name="command">cd ~/.openclaw/workspace/skills/duckduckgo-search && source .venv/bin/activate && python3 -c "from ddgs import DDGS..."
+</parameter>
+<parameter name="timeout">30</parameter>
+</invoke>
+</minimax:tool_call>`,
+        },
+      ],
+      timestamp: Date.now(),
+    });
+    promoteMinimaxToolCallsFromThinking(msg);
+    expect(msg.content).toHaveLength(2);
+    const thinkingBlock = (msg.content as { type: string }[]).find((b) => b.type === "thinking");
+    const toolCallBlock = (
+      msg.content as { type: string; name?: string; arguments?: unknown }[]
+    ).find((b) => b.type === "toolCall");
+    expect(thinkingBlock).toBeDefined();
+    expect(toolCallBlock?.name).toBe("exec");
+    expect(toolCallBlock?.arguments).toEqual({
+      command: `cd ~/.openclaw/workspace/skills/duckduckgo-search && source .venv/bin/activate && python3 -c "from ddgs import DDGS..."`,
+      timeout: "30",
+    });
+    expect((msg as { stopReason?: string }).stopReason).toBe("toolUse");
   });
 });

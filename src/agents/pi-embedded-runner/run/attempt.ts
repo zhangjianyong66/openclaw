@@ -53,6 +53,7 @@ import {
   validateGeminiTurns,
 } from "../../pi-embedded-helpers.js";
 import { subscribeEmbeddedPiSession } from "../../pi-embedded-subscribe.js";
+import { promoteMinimaxToolCallsFromThinking } from "../../pi-embedded-utils.js";
 import { createPreparedEmbeddedPiSettingsManager } from "../../pi-project-settings.js";
 import { toClientToolDefinitions } from "../../pi-tool-definition-adapter.js";
 import { createOpenClawCodingTools, resolveToolLoopDetectionConfig } from "../../pi-tools.js";
@@ -359,6 +360,50 @@ function trimWhitespaceFromToolCallNamesInMessage(
   normalizeToolCallIdsInMessage(message);
 }
 
+function applyPromoteMinimaxToolCallsFromThinking(msg: unknown): void {
+  if (msg && typeof msg === "object" && (msg as { role?: string }).role === "assistant") {
+    promoteMinimaxToolCallsFromThinking(
+      msg as Parameters<typeof promoteMinimaxToolCallsFromThinking>[0],
+    );
+  }
+}
+
+function wrapStreamPromoteMinimaxToolCallsFromThinking(
+  stream: ReturnType<typeof streamSimple>,
+): ReturnType<typeof streamSimple> {
+  const originalResult = stream.result.bind(stream);
+  stream.result = async () => {
+    const message = await originalResult();
+    applyPromoteMinimaxToolCallsFromThinking(message);
+    return message;
+  };
+
+  const originalAsyncIterator = stream[Symbol.asyncIterator].bind(stream);
+  (stream as { [Symbol.asyncIterator]: typeof originalAsyncIterator })[Symbol.asyncIterator] =
+    function () {
+      const iterator = originalAsyncIterator();
+      return {
+        async next() {
+          const result = await iterator.next();
+          if (!result.done && result.value && typeof result.value === "object") {
+            const event = result.value as { partial?: unknown; message?: unknown };
+            applyPromoteMinimaxToolCallsFromThinking(event.partial);
+            applyPromoteMinimaxToolCallsFromThinking(event.message);
+          }
+          return result;
+        },
+        async return(value?: unknown) {
+          return iterator.return?.(value) ?? { done: true as const, value: undefined };
+        },
+        async throw(error?: unknown) {
+          return iterator.throw?.(error) ?? { done: true as const, value: undefined };
+        },
+      };
+    };
+
+  return stream;
+}
+
 function wrapStreamTrimToolCallNames(
   stream: ReturnType<typeof streamSimple>,
   allowedToolNames?: Set<string>,
@@ -411,6 +456,18 @@ export function wrapStreamFnTrimToolCallNames(
       );
     }
     return wrapStreamTrimToolCallNames(maybeStream, allowedToolNames);
+  };
+}
+
+export function wrapStreamFnPromoteMinimaxToolCallsFromThinking(baseFn: StreamFn): StreamFn {
+  return (model, context, options) => {
+    const maybeStream = baseFn(model, context, options);
+    if (maybeStream && typeof maybeStream === "object" && "then" in maybeStream) {
+      return Promise.resolve(maybeStream).then((stream) =>
+        wrapStreamPromoteMinimaxToolCallsFromThinking(stream),
+      );
+    }
+    return wrapStreamPromoteMinimaxToolCallsFromThinking(maybeStream);
   };
 }
 
@@ -1125,6 +1182,11 @@ export async function runEmbeddedAttempt(
       activeSession.agent.streamFn = wrapStreamFnTrimToolCallNames(
         activeSession.agent.streamFn,
         allowedToolNames,
+      );
+      // When Minimax (e.g. via bailian) puts tool calls only inside thinking/reasoning
+      // as <minimax:tool_call><invoke>...</invoke>, promote them to real toolCall blocks.
+      activeSession.agent.streamFn = wrapStreamFnPromoteMinimaxToolCallsFromThinking(
+        activeSession.agent.streamFn,
       );
 
       if (anthropicPayloadLogger) {
