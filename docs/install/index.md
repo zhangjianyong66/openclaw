@@ -135,7 +135,7 @@ For VPS/cloud hosts, avoid third-party "1-click" marketplace images when possibl
       </Step>
     </Steps>
 
-    For deeper development workflows, see [Setup](/start/setup).
+    For full steps (including pnpm global setup and restoring the published version), see [Install local build globally (pnpm link)](/install/local-link). For deeper development workflows, see [Setup](/start/setup).
 
   </Accordion>
 </AccordionGroup>
