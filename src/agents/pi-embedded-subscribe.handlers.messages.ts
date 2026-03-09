@@ -18,6 +18,9 @@ import {
   promoteThinkingTagsToBlocks,
 } from "./pi-embedded-utils.js";
 
+/** Shown when the model ends with stopReason "stop" but produced no user-visible content. */
+export const EMPTY_REPLY_FALLBACK_TEXT = "模型未返回可展示内容，请重试。";
+
 const stripTrailingDirective = (text: string): string => {
   const openIndex = text.lastIndexOf("[[");
   if (openIndex < 0) {
@@ -317,6 +320,23 @@ export function handleMessageEnd(
         delta: cleanedText,
         mediaUrls: hasMedia ? mediaUrls : undefined,
       },
+    });
+    ctx.state.emittedAssistantUpdate = true;
+  } else if (
+    !ctx.state.emittedAssistantUpdate &&
+    (assistantMessage as { stopReason?: string }).stopReason === "stop"
+  ) {
+    // Model ended normally but produced no user-visible content (e.g. only thinking or garbage).
+    // Emit a fallback so the session does not appear to hang.
+    const fallbackText = EMPTY_REPLY_FALLBACK_TEXT;
+    emitAgentEvent({
+      runId: ctx.params.runId,
+      stream: "assistant",
+      data: { text: fallbackText, delta: fallbackText },
+    });
+    void ctx.params.onAgentEvent?.({
+      stream: "assistant",
+      data: { text: fallbackText, delta: fallbackText },
     });
     ctx.state.emittedAssistantUpdate = true;
   }

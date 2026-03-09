@@ -9,6 +9,7 @@ import {
   extractAgentEventPayloads,
   findLifecycleErrorAgentEvent,
 } from "./pi-embedded-subscribe.e2e-harness.js";
+import { EMPTY_REPLY_FALLBACK_TEXT } from "./pi-embedded-subscribe.handlers.messages.js";
 import { subscribeEmbeddedPiSession } from "./pi-embedded-subscribe.js";
 
 describe("subscribeEmbeddedPiSession", () => {
@@ -291,6 +292,21 @@ describe("subscribeEmbeddedPiSession", () => {
     });
     emitMessageStartAndEndForAssistantText({ emit, text: "Hello world" });
     expectSingleAgentEventText(onAgentEvent.mock.calls, "Hello world");
+  });
+
+  it("emits fallback text when message_end has stopReason stop but no user-visible content", () => {
+    const { emit, onAgentEvent } = createAgentEventHarness();
+
+    const assistantMessage = {
+      role: "assistant",
+      content: [{ type: "thinking", thinking: " 2>&1</parameter>\n</invoke>\n" }],
+      stopReason: "stop",
+    } as AssistantMessage;
+
+    emit({ type: "message_start", message: assistantMessage });
+    emit({ type: "message_end", message: assistantMessage });
+
+    expectSingleAgentEventText(onAgentEvent.mock.calls, EMPTY_REPLY_FALLBACK_TEXT);
   });
 
   it("does not emit duplicate agent events when message_end repeats", () => {
