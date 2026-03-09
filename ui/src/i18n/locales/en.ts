@@ -115,6 +115,10 @@ export const en: TranslationMap = {
     showCronSessions: "Show cron sessions",
     showCronSessionsHidden: "Show cron sessions ({count} hidden)",
     onboardingDisabled: "Disabled during onboarding",
+    toolOutputTitle: "Tool Output",
+    toolOutputClose: "Close sidebar",
+    toolOutputViewRawText: "View Raw Text",
+    toolOutputEmpty: "No content available",
   },
   languages: {
     en: "English",
