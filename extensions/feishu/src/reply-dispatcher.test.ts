@@ -252,6 +252,23 @@ describe("createFeishuReplyDispatcher streaming behavior", () => {
     expect(result.replyOptions).toHaveProperty("disableBlockStreaming", true);
   });
 
+  it("sets disableBlockStreaming to false when blockStreaming is true for incremental delivery", () => {
+    resolveFeishuAccountMock.mockReturnValue({
+      accountId: "main",
+      appId: "app_id",
+      appSecret: "app_secret",
+      domain: "feishu",
+      config: { renderMode: "auto", streaming: true, blockStreaming: true },
+    });
+    const result = createFeishuReplyDispatcher({
+      cfg: {} as never,
+      agentId: "agent",
+      runtime: {} as never,
+      chatId: "oc_chat",
+    });
+    expect(result.replyOptions).toHaveProperty("disableBlockStreaming", false);
+  });
+
   it("uses streaming session for auto mode markdown payloads", async () => {
     createFeishuReplyDispatcher({
       cfg: {} as never,

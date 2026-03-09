@@ -377,12 +377,17 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
       },
     });
 
+  // When blockStreaming is true, allow core to deliver block payloads so replies
+  // are sent incrementally (one-by-one). Otherwise keep disableBlockStreaming: true
+  // to avoid plain-text auto-render replies being silently dropped (#38258).
+  const disableBlockStreaming = !(account.config?.blockStreaming === true);
+
   return {
     dispatcher,
     replyOptions: {
       ...replyOptions,
       onModelSelected: prefixContext.onModelSelected,
-      disableBlockStreaming: true,
+      disableBlockStreaming,
       onPartialReply: streamingEnabled
         ? (payload: ReplyPayload) => {
             if (!payload.text) {
