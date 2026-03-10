@@ -44,22 +44,9 @@ function shouldBypassProxy(hostname: string): boolean {
 }
 
 function getWsProxyAgent(): HttpsProxyAgent<string> | undefined {
-  const proxyUrl =
-    process.env.https_proxy ||
-    process.env.HTTPS_PROXY ||
-    process.env.http_proxy ||
-    process.env.HTTP_PROXY;
-  if (!proxyUrl) return undefined;
-
-  // Check no_proxy to bypass proxy for specific domains
-  const feishuHosts = ["open.feishu.cn", "feishu.cn", "lark.cn", "open.lark.cn"];
-  for (const host of feishuHosts) {
-    if (shouldBypassProxy(host)) {
-      return undefined;
-    }
-  }
-
-  return new HttpsProxyAgent(proxyUrl);
+  // Feishu WebSocket should never use proxy - always connect directly
+  // to avoid ECONNRESET and 400 errors when proxy is configured
+  return undefined;
 }
 
 // Multi-account client cache
