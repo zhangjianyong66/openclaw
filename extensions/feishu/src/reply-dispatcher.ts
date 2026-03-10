@@ -257,17 +257,17 @@ export function createFeishuReplyDispatcher(params: CreateFeishuReplyDispatcherP
         if (shouldDeliverText) {
           const useCard = renderMode === "card" || (renderMode === "auto" && shouldUseCard(text));
 
-          if (info?.kind === "block") {
-            // Drop internal block chunks unless we can safely consume them as
-            // streaming-card fallback content.
-            if (!(streamingEnabled && useCard)) {
-              return;
-            }
-            startStreaming();
-            if (streamingStartPromise) {
-              await streamingStartPromise;
-            }
-          }
+          // FIX: Don't skip block kind - allow it to proceed to normal send logic
+          // Previously this caused replies to be silently dropped when streaming was not enabled
+          // if (info?.kind === "block") {
+          //   if (!(streamingEnabled && useCard)) {
+          //     return;
+          //   }
+          //   startStreaming();
+          //   if (streamingStartPromise) {
+          //     await streamingStartPromise;
+          //   }
+          // }
 
           if (info?.kind === "final" && streamingEnabled && useCard) {
             startStreaming();
