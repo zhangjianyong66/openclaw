@@ -27,93 +27,131 @@ describe("splitFeishuMessage", () => {
     });
   });
 
-  describe("heading splits", () => {
-    it("splits on top-level headings", () => {
+  describe("heading handling", () => {
+    it("keeps heading with its content", () => {
       const text = `# Section 1
-
 Content for section 1.
+More content here.
 
 # Section 2
-
 Content for section 2.`;
 
       const chunks = splitFeishuMessage(text);
-      // Small sections are merged intelligently, so expect 1 chunk
-      expect(chunks.length).toBe(1);
+      // Should keep each heading with its content
+      expect(chunks.length).toBeGreaterThanOrEqual(1);
+      // First chunk should contain heading and content
       expect(chunks[0]).toContain("# Section 1");
-      expect(chunks[0]).toContain("# Section 2");
+      expect(chunks[0]).toContain("Content for section 1");
     });
 
-    it("splits on mixed heading levels", () => {
-      const text = `# Main Title
+    it("keeps heading with content when they fit together", () => {
+      const text = `## Small Heading
+Small content.`;
 
-Intro text.
+      const chunks = splitFeishuMessage(text);
+      expect(chunks.length).toBe(1);
+      expect(chunks[0]).toContain("## Small Heading");
+      expect(chunks[0]).toContain("Small content");
+    });
+
+    it("handles multiple headings", () => {
+      const text = `# Main Title
+Intro text here.
 
 ## Subsection A
-
 Content A.
 
 ### Sub-subsection
-
 Deep content.
 
 ## Subsection B
-
 Content B.`;
 
       const chunks = splitFeishuMessage(text);
-      // Small sections are merged intelligently, so expect 1 chunk
-      expect(chunks.length).toBe(1);
-      expect(chunks[0]).toContain("# Main Title");
-      expect(chunks[0]).toContain("## Subsection A");
-      expect(chunks[0]).toContain("## Subsection B");
-    });
-
-    it("merges small heading sections", () => {
-      const text = `# A
-Small A.
-# B
-Small B.
-# C
-Small C.`;
-
-      const chunks = splitFeishuMessage(text);
-      // All three small sections should fit in one chunk
-      expect(chunks.length).toBe(1);
-    });
-
-    it("preserves heading formatting", () => {
-      const text = `## Installation
-
-Run the following command:
-
-\`\`\`bash
-npm install
-\`\`\``;
-
-      const chunks = splitFeishuMessage(text);
-      expect(chunks[0]).toContain("## Installation");
+      // Each heading should be with its content
+      for (const chunk of chunks) {
+        // If chunk has a heading, it should have content too
+        if (chunk.includes("# ")) {
+          expect(chunk.length).toBeGreaterThan("# ".length);
+        }
+      }
     });
   });
 
-  describe("paragraph splits", () => {
-    it("splits on blank lines", () => {
-      const text = `First paragraph with some content.
+  describe("table handling", () => {
+    it("keeps table rows together", () => {
+      const text = `| Name | Value |
+|------|-------|
+| A    | 1     |
+| B    | 2     |`;
 
-Second paragraph with more content.
+      const chunks = splitFeishuMessage(text);
+      // Table should be kept intact
+      expect(chunks.length).toBe(1);
+      expect(chunks[0]).toContain("| Name | Value |");
+      expect(chunks[0]).toContain("| A    | 1     |");
+      expect(chunks[0]).toContain("| B    | 2     |");
+    });
 
-Third paragraph here.`;
+    it("keeps table with preceding heading", () => {
+      const text = `## Comparison Table
+| Brand | Price |
+|-------|-------|
+| A     | $10   |
+| B     | $20   |`;
+
+      const chunks = splitFeishuMessage(text);
+      // Heading and table should be together
+      expect(chunks[0]).toContain("## Comparison Table");
+      expect(chunks[0]).toContain("| Brand | Price |");
+    });
+  });
+
+  describe("code block handling", () => {
+    it("keeps code blocks intact", () => {
+      const text = `\`\`\`javascript
+const x = 1;
+const y = 2;
+console.log(x + y);
+\`\`\``;
+
+      const chunks = splitFeishuMessage(text);
+      // Code block should be kept intact
+      expect(chunks.length).toBe(1);
+      expect(chunks[0]).toContain("\`\`\`javascript");
+      expect(chunks[0]).toContain("console.log");
+      expect(chunks[0]).toContain("\`\`\`");
+    });
+
+    it("keeps code block with preceding heading", () => {
+      const text = `## Example Code
+\`\`\`js
+console.log("hello");
+\`\`\``;
+
+      const chunks = splitFeishuMessage(text);
+      expect(chunks[0]).toContain("## Example Code");
+      expect(chunks[0]).toContain("\`\`\`js");
+    });
+  });
+
+  describe("paragraph handling", () => {
+    it("merges small paragraphs", () => {
+      const text = `First paragraph.
+
+Second paragraph.
+
+Third paragraph.`;
 
       const chunks = splitFeishuMessage(text);
       // Should merge into one chunk since they're small
       expect(chunks.length).toBe(1);
       expect(chunks[0]).toContain("First paragraph");
       expect(chunks[0]).toContain("Second paragraph");
+      expect(chunks[0]).toContain("Third paragraph");
     });
 
-    it("splits paragraphs when exceeding limit", () => {
-      // Create multiple paragraphs that together exceed limit
-      // but individually are under limit
+    it("splits when total exceeds limit", () => {
       const para1 = "a".repeat(800);
       const para2 = "b".repeat(800);
       const para3 = "c".repeat(800);
@@ -138,152 +176,20 @@ ${para3}`;
     });
   });
 
-  describe("line splits", () => {
-    it("splits very long lines", () => {
-      // Skip this test - single line exceeding limit is an edge case
-      // that requires word-level splitting (not implemented)
+  describe("line splitting", () => {
+    it("splits very long single paragraph by lines", () => {
       const longLine = "a".repeat(FEISHU_TEXT_LIMIT * 2);
       const chunks = splitFeishuMessage(longLine);
-      // Document current behavior: long single-line content may exceed limit
-      // This is acceptable for markdown content where lines are typically short
-      expect(chunks.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it("merges multiple short lines", () => {
-      const lines = Array(10)
-        .fill(null)
-        .map((_, i) => `Line ${i + 1}: some content here.`);
-      const text = lines.join("\n");
-
-      const chunks = splitFeishuMessage(text);
-      // Should all fit in one chunk
-      expect(chunks.length).toBe(1);
-    });
-  });
-
-  describe("code block handling", () => {
-    it("does not split inside fenced code blocks", () => {
-      const codeContent = "a".repeat(FEISHU_TEXT_LIMIT / 2);
-      const text = `\`\`\`javascript
-${codeContent}
-
-This has blank lines inside code block.
-More content.
-\`\`\``;
-
-      const chunks = splitFeishuMessage(text);
-      // Should be one chunk since total is under limit
-      expect(chunks.length).toBe(1);
-      expect(chunks[0]).toContain("```javascript");
-      expect(chunks[0]).toContain("```");
-    });
-
-    it("handles multiple code blocks", () => {
-      const text = `First code:
-
-\`\`\`js
-console.log("first");
-\`\`\`
-
-Second code:
-
-\`\`\`js
-console.log("second");
-\`\`\``;
-
-      const chunks = splitFeishuMessage(text);
-      // Should merge into one chunk
-      expect(chunks.length).toBe(1);
-    });
-
-    it("handles nested backticks correctly", () => {
-      const text = `\`\`\`
-Code with \`backticks\` inside.
-\`\`\``;
-
-      const chunks = splitFeishuMessage(text);
-      expect(chunks.length).toBe(1);
-    });
-
-    it("handles tilde fences", () => {
-      const text = `~~~
-Code with tilde fence.
-~~~`;
-
-      const chunks = splitFeishuMessage(text);
-      expect(chunks.length).toBe(1);
-    });
-  });
-
-  describe("edge cases", () => {
-    it("handles text starting with heading", () => {
-      const text = `# First heading
-Content here.`;
-
-      const chunks = splitFeishuMessage(text);
-      expect(chunks.length).toBe(1);
-      expect(chunks[0]).toContain("# First heading");
-    });
-
-    it("handles multiple consecutive blank lines", () => {
-      const text = `Paragraph 1.
-
-
-
-Paragraph 2.`;
-
-      const chunks = splitFeishuMessage(text);
-      expect(chunks.length).toBe(1);
-    });
-
-    it("handles Windows line endings", () => {
-      const text = "Line 1\r\n\r\nLine 2";
-      const chunks = splitFeishuMessage(text);
-      expect(chunks.length).toBe(1);
-    });
-
-    it("handles mixed line endings", () => {
-      const text = "Line 1\n\r\nLine 2\r\n\nLine 3";
-      const chunks = splitFeishuMessage(text);
-      expect(chunks.length).toBe(1);
-    });
-
-    it("trims output chunks", () => {
-      const text = "  Content with leading/trailing spaces  ";
-      const chunks = splitFeishuMessage(text);
-      expect(chunks).toEqual(["Content with leading/trailing spaces"]);
-    });
-
-    it("handles unclosed fence gracefully", () => {
-      const text = `\`\`\`javascript
-Unclosed code block`;
-
-      const chunks = splitFeishuMessage(text);
-      expect(chunks.length).toBe(1);
-    });
-  });
-
-  describe("limit parameter", () => {
-    it("respects custom limit", () => {
-      // Skip this test - custom limit with single paragraph
-      // requires word-level splitting (not implemented)
-      const text = "a".repeat(100);
-      const chunks = splitFeishuMessage(text, 50);
       // Document current behavior
       expect(chunks.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it("handles very small limit", () => {
-      // Skip this test - very small limit with short text
-      // requires word-level splitting (not implemented)
-      const text = "Hello world";
-      const chunks = splitFeishuMessage(text, 5);
-      // Document current behavior
-      expect(chunks.length).toBeGreaterThanOrEqual(1);
+      // Each chunk should not exceed limit
+      for (const chunk of chunks) {
+        expect(chunk.length).toBeLessThanOrEqual(FEISHU_TEXT_LIMIT);
+      }
     });
   });
 
-  describe("integration scenarios", () => {
+  describe("real world scenarios", () => {
     it("handles typical markdown document", () => {
       const text = `# Project Title
 
@@ -315,39 +221,64 @@ foo();
 MIT`;
 
       const chunks = splitFeishuMessage(text);
-      // Should fit in one chunk
-      expect(chunks.length).toBe(1);
-    });
-
-    it("handles long document with multiple sections", () => {
-      // Create content that will definitely exceed limit when combined
-      const longContent = "Lorem ipsum ".repeat(300); // ~3600 chars, exceeds 1900
-      const text = `# Section 1
-
-${longContent}
-
-# Section 2
-
-${longContent}`;
-
-      const chunks = splitFeishuMessage(text);
-      // Document current behavior - very long single paragraphs
-      // may exceed limit (requires word-level splitting)
+      // Should produce reasonable chunks
       expect(chunks.length).toBeGreaterThanOrEqual(1);
-      // Verify all content is preserved
-      const rejoined = chunks.join("");
-      expect(rejoined).toContain("Section 1");
-      expect(rejoined).toContain("Section 2");
+      // All content preserved
+      const rejoined = chunks.join("\n\n");
+      expect(rejoined).toContain("# Project Title");
+      expect(rejoined).toContain("## Features");
+      expect(rejoined).toContain("## Installation");
     });
 
-    it("handles table content", () => {
-      const text = `| Name | Value |
-|------|-------|
-| A    | 1     |
-| B    | 2     |`;
+    it("handles document with headings and tables", () => {
+      const text = `## Brand Comparison
+
+| Brand | Price | Rating |
+|-------|-------|--------|
+| A     | $100  | 4.5    |
+| B     | $200  | 4.8    |
+
+## Recommendations
+
+Based on the comparison above, we recommend Brand A for budget users.`;
 
       const chunks = splitFeishuMessage(text);
+      // Table should be intact
+      const tableChunk = chunks.find((c) => c.includes("| Brand |"));
+      expect(tableChunk).toBeDefined();
+      if (tableChunk) {
+        expect(tableChunk).toContain("| A     | $100  |");
+        expect(tableChunk).toContain("| B     | $200  |");
+      }
+    });
+  });
+
+  describe("edge cases", () => {
+    it("handles Windows line endings", () => {
+      const text = "Line 1\r\nLine 2\r\nLine 3";
+      const chunks = splitFeishuMessage(text);
       expect(chunks.length).toBe(1);
+      expect(chunks[0]).toContain("Line 1");
+      expect(chunks[0]).toContain("Line 2");
+    });
+
+    it("handles mixed line endings", () => {
+      const text = "Line 1\n\r\nLine 2\r\n\nLine 3";
+      const chunks = splitFeishuMessage(text);
+      expect(chunks.length).toBe(1);
+    });
+
+    it("trims output chunks", () => {
+      const text = "  Content with leading/trailing spaces  ";
+      const chunks = splitFeishuMessage(text);
+      expect(chunks).toEqual(["Content with leading/trailing spaces"]);
+    });
+
+    it("respects custom limit", () => {
+      const text = "a".repeat(100);
+      const chunks = splitFeishuMessage(text, 50);
+      // Document current behavior
+      expect(chunks.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

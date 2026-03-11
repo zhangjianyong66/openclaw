@@ -1,384 +1,271 @@
 /**
  * Feishu message splitter with intelligent markdown-aware chunking.
  *
- * Splitting strategy (in order of preference):
- * 1. Level 1: Split by headings (# ## ###)
- * 2. Level 2: Split by paragraphs (blank lines)
- * 3. Level 3: Split by lines
- * 4. Smart merge: Combine small sections that fit within limit
+ * Splitting strategy:
+ * 1. Keep content integrity: headings with their content, tables intact
+ * 2. Split by paragraphs first
+ * 3. Merge small paragraphs that fit within limit
+ * 4. Split by lines only when single paragraph exceeds limit
  */
 
-/** Feishu's actual limit is 2000, we use 1900 for safety margin */
+/**
+ * Feishu's actual limit is 2000 characters.
+ * We use 1900 for safety margin.
+ */
 export const FEISHU_TEXT_LIMIT = 1900;
 
-/** Regex to match markdown headings (lines starting with 1-6 # characters) */
-const HEADING_RE = /^(#{1,6})\s+.+$/;
-
 /**
- * Represents a fenced code block span.
+ * Check if a line is a markdown heading.
  */
-type FenceSpan = {
-  start: number;
-  end: number;
-};
-
-/**
- * Parse fenced code blocks (``` or ~~~) in the text.
- * Returns array of spans indicating code block ranges.
- */
-function parseFenceSpans(buffer: string): FenceSpan[] {
-  const spans: FenceSpan[] = [];
-  let open:
-    | {
-        start: number;
-        markerChar: string;
-        markerLen: number;
-      }
-    | undefined;
-
-  let offset = 0;
-  while (offset <= buffer.length) {
-    const nextNewline = buffer.indexOf("\n", offset);
-    const lineEnd = nextNewline === -1 ? buffer.length : nextNewline;
-    const line = buffer.slice(offset, lineEnd);
-
-    const match = line.match(/^( {0,3})(`{3,}|~{3,})(.*)$/);
-    if (match) {
-      const marker = match[2];
-      const markerChar = marker[0]!;
-      const markerLen = marker.length;
-      if (!open) {
-        open = {
-          start: offset,
-          markerChar,
-          markerLen,
-        };
-      } else if (open.markerChar === markerChar && markerLen >= open.markerLen) {
-        spans.push({
-          start: open.start,
-          end: lineEnd,
-        });
-        open = undefined;
-      }
-    }
-
-    if (nextNewline === -1) {
-      break;
-    }
-    offset = nextNewline + 1;
-  }
-
-  // Handle unclosed fence
-  if (open) {
-    spans.push({
-      start: open.start,
-      end: buffer.length,
-    });
-  }
-
-  return spans;
+function isHeading(line: string): boolean {
+  return /^#{1,6}\s+.+$/.test(line);
 }
 
 /**
- * Check if an index is inside a fenced code block.
+ * Check if a line is a table row (contains |).
  */
-function isInFence(spans: FenceSpan[], index: number): boolean {
-  for (const span of spans) {
-    if (index > span.start && index < span.end) {
-      return true;
-    }
-    if (index >= span.end) {
-      break;
-    }
-  }
-  return false;
+function isTableRow(line: string): boolean {
+  return line.includes("|") && line.trim().startsWith("|");
 }
 
 /**
- * Check if it's safe to break at the given index (not inside a fence).
+ * Check if a line is a table separator (contains only -, |, :, and spaces).
  */
-function isSafeBreak(spans: FenceSpan[], index: number): boolean {
-  return !isInFence(spans, index);
+function isTableSeparator(line: string): boolean {
+  return /^\s*\|[-:|\s]+\|\s*$/.test(line);
 }
 
 /**
- * Represents a section of text with metadata about its boundaries.
+ * Check if a line starts or ends a fenced code block.
  */
-type Section = {
-  text: string;
-  isHeading: boolean;
-  headingLevel: number;
-};
+function isFence(line: string): boolean {
+  return /^(```|~~~)/.test(line.trim());
+}
 
 /**
- * Split text into sections by headings, respecting fenced code blocks.
+ * Split text into logical blocks (paragraphs, tables, code blocks, etc.).
+ * Each block should be kept intact if possible.
  */
-function splitByHeadings(text: string): Section[] {
-  const spans = parseFenceSpans(text);
+function splitIntoBlocks(text: string): string[] {
   const lines = text.split("\n");
-  const sections: Section[] = [];
+  const blocks: string[] = [];
+  let currentBlock: string[] = [];
+  let inCodeBlock = false;
+  let inTable = false;
 
-  let currentSection: string[] = [];
-  let currentIsHeading = false;
-  let currentHeadingLevel = 0;
-  let offset = 0;
-
-  const flushSection = () => {
-    if (currentSection.length > 0) {
-      const sectionText = currentSection.join("\n").trim();
-      if (sectionText) {
-        sections.push({
-          text: sectionText,
-          isHeading: currentIsHeading,
-          headingLevel: currentHeadingLevel,
-        });
+  const flushBlock = () => {
+    if (currentBlock.length > 0) {
+      const block = currentBlock.join("\n").trim();
+      if (block) {
+        blocks.push(block);
       }
-      currentSection = [];
-      currentIsHeading = false;
-      currentHeadingLevel = 0;
+      currentBlock = [];
     }
   };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (line === undefined) continue;
 
-    const lineStart = offset;
-
-    // Check if this line is inside a fence
-    const inFence = isInFence(spans, lineStart);
-
-    // Check for heading (only outside fences)
-    const headingMatch = !inFence && HEADING_RE.test(line);
-
-    if (headingMatch && !currentIsHeading && currentSection.length > 0) {
-      // Found a heading and we have content - flush current section
-      flushSection();
+    // Handle code blocks
+    if (isFence(line)) {
+      if (inCodeBlock) {
+        // End of code block
+        currentBlock.push(line);
+        flushBlock();
+        inCodeBlock = false;
+        continue;
+      } else {
+        // Start of code block
+        flushBlock();
+        inCodeBlock = true;
+        currentBlock.push(line);
+        continue;
+      }
     }
 
-    if (headingMatch) {
-      const match = line.match(HEADING_RE);
-      currentIsHeading = true;
-      currentHeadingLevel = match?.[1]?.length ?? 0;
-    } else {
-      currentIsHeading = false;
-    }
-
-    currentSection.push(line);
-    offset += line.length + 1; // +1 for the newline
-  }
-
-  // Flush remaining content
-  flushSection();
-
-  return sections;
-}
-
-/**
- * Split a section into paragraphs (blank line boundaries).
- * Respects fenced code blocks.
- */
-function splitByParagraphs(text: string): string[] {
-  const spans = parseFenceSpans(text);
-
-  // Normalize to \n so blank line detection is consistent
-  const normalized = text.replace(/\r\n?/g, "\n");
-
-  // Fast-path: no blank lines
-  const paragraphRe = /\n[\t ]*\n+/;
-  if (!paragraphRe.test(normalized)) {
-    return normalized.trim() ? [normalized.trim()] : [];
-  }
-
-  const parts: string[] = [];
-  const re = /\n[\t ]*\n+/g;
-  let lastIndex = 0;
-
-  for (const match of normalized.matchAll(re)) {
-    const idx = match.index ?? 0;
-
-    // Do not split on blank lines inside fenced code blocks
-    if (!isSafeBreak(spans, idx)) {
+    if (inCodeBlock) {
+      currentBlock.push(line);
       continue;
     }
 
-    parts.push(normalized.slice(lastIndex, idx));
-    lastIndex = idx + match[0].length;
-  }
-  parts.push(normalized.slice(lastIndex));
+    // Handle headings - start new block
+    if (isHeading(line)) {
+      flushBlock();
+      currentBlock.push(line);
+      continue;
+    }
 
-  return parts.map((p) => p.trim()).filter((p) => p.length > 0);
+    // Handle tables
+    if (isTableRow(line) || isTableSeparator(line)) {
+      if (!inTable) {
+        flushBlock();
+        inTable = true;
+      }
+      currentBlock.push(line);
+      continue;
+    } else if (inTable && line.trim() === "") {
+      // Empty line ends table
+      flushBlock();
+      inTable = false;
+      continue;
+    } else if (inTable) {
+      // Non-table line ends table
+      flushBlock();
+      inTable = false;
+      // Fall through to handle this line
+    }
+
+    // Handle empty lines (paragraph separators)
+    if (line.trim() === "") {
+      flushBlock();
+      continue;
+    }
+
+    // Regular line
+    currentBlock.push(line);
+  }
+
+  // Flush remaining
+  flushBlock();
+
+  return blocks;
 }
 
 /**
- * Split text by lines, respecting fenced code blocks.
+ * Merge blocks intelligently.
+ * Key rule: Keep heading with its following content.
  */
-function splitByLines(text: string, limit: number): string[] {
-  const spans = parseFenceSpans(text);
-  const lines = text.split("\n");
-  const chunks: string[] = [];
+function mergeBlocks(blocks: string[], limit: number): string[] {
+  if (blocks.length === 0) {
+    return [];
+  }
 
+  const merged: string[] = [];
   let currentChunk: string[] = [];
   let currentLength = 0;
-  let offset = 0;
+  let pendingHeading: string | null = null;
 
   const flushChunk = () => {
     if (currentChunk.length > 0) {
-      const chunk = currentChunk.join("\n").trim();
-      if (chunk) {
-        chunks.push(chunk);
-      }
+      merged.push(currentChunk.join("\n\n"));
       currentChunk = [];
       currentLength = 0;
     }
   };
 
-  for (const line of lines) {
-    const lineLength = line.length + (currentChunk.length > 0 ? 1 : 0); // +1 for newline
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    const blockLength = block.length;
 
-    // Check if adding this line would exceed limit
-    if (currentLength + lineLength > limit && currentChunk.length > 0) {
-      // Check if we can break at this point (not inside fence)
-      const breakOffset = offset;
-      if (isSafeBreak(spans, breakOffset)) {
-        flushChunk();
-      }
-    }
+    // If block alone exceeds limit, we need to split it
+    if (blockLength > limit) {
+      // First flush any pending content
+      flushChunk();
 
-    currentChunk.push(line);
-    currentLength += lineLength;
-    offset += line.length + 1; // +1 for newline
-  }
+      // Split oversized block by lines
+      const lines = block.split("\n");
+      let lineChunk: string[] = [];
+      let lineChunkLength = 0;
 
-  // Flush remaining
-  if (currentChunk.length > 0) {
-    const chunk = currentChunk.join("\n").trim();
-    if (chunk) {
-      chunks.push(chunk);
-    }
-  }
+      for (const line of lines) {
+        // If single line exceeds limit, we have to split it (rare case)
+        if (line.length > limit) {
+          // Flush current line chunk first
+          if (lineChunk.length > 0) {
+            merged.push(lineChunk.join("\n"));
+            lineChunk = [];
+            lineChunkLength = 0;
+          }
+          // Split long line by character limit
+          for (let i = 0; i < line.length; i += limit) {
+            merged.push(line.slice(i, i + limit));
+          }
+          continue;
+        }
 
-  return chunks;
-}
+        const lineLen = line.length + (lineChunk.length > 0 ? 1 : 0);
 
-/**
- * Merge small sections intelligently.
- * Adjacent sections are merged if their combined length doesn't exceed the limit.
- */
-function mergeSections(sections: Section[], limit: number): string[] {
-  if (sections.length === 0) {
-    return [];
-  }
-
-  const merged: string[] = [];
-  let currentBatch: string[] = [];
-  let currentLength = 0;
-
-  for (const section of sections) {
-    const sectionText = section.text;
-    const sectionLength = sectionText.length;
-
-    // If section alone exceeds limit, we need to split it further
-    if (sectionLength > limit) {
-      // First flush current batch
-      if (currentBatch.length > 0) {
-        merged.push(currentBatch.join("\n\n"));
-        currentBatch = [];
-        currentLength = 0;
-      }
-
-      // Split the oversized section by paragraphs
-      const paragraphs = splitByParagraphs(sectionText);
-
-      // Try to merge paragraphs
-      const paragraphChunks = mergeParagraphs(paragraphs, limit);
-
-      // If still too long, split by lines
-      for (const chunk of paragraphChunks) {
-        if (chunk.length <= limit) {
-          merged.push(chunk);
+        if (lineChunkLength + lineLen > limit && lineChunk.length > 0) {
+          merged.push(lineChunk.join("\n"));
+          lineChunk = [line];
+          lineChunkLength = line.length;
         } else {
-          // Final fallback: split by lines
-          const lineChunks = splitByLines(chunk, limit);
-          merged.push(...lineChunks);
+          lineChunk.push(line);
+          lineChunkLength += lineLen;
         }
       }
+
+      if (lineChunk.length > 0) {
+        merged.push(lineChunk.join("\n"));
+      }
       continue;
     }
 
-    // Check if we can add this section to current batch
-    const separator = currentBatch.length > 0 ? "\n\n" : "";
-    const newLength = currentLength + separator.length + sectionLength;
+    // Check if this is a heading
+    const isBlockHeading = isHeading(block.split("\n")[0] || "");
 
-    if (newLength <= limit) {
-      currentBatch.push(sectionText);
-      currentLength = newLength;
-    } else {
-      // Flush current batch and start new one
-      if (currentBatch.length > 0) {
-        merged.push(currentBatch.join("\n\n"));
+    if (isBlockHeading) {
+      // If we have a previous heading waiting for content, flush it
+      if (pendingHeading !== null) {
+        // Previous heading has no content, just add it
+        currentChunk.push(pendingHeading);
+        currentLength += pendingHeading.length + (currentLength > 0 ? 2 : 0);
       }
-      currentBatch = [sectionText];
-      currentLength = sectionLength;
-    }
-  }
-
-  // Flush remaining batch
-  if (currentBatch.length > 0) {
-    merged.push(currentBatch.join("\n\n"));
-  }
-
-  return merged;
-}
-
-/**
- * Merge paragraphs intelligently within limit.
- */
-function mergeParagraphs(paragraphs: string[], limit: number): string[] {
-  if (paragraphs.length === 0) {
-    return [];
-  }
-
-  const merged: string[] = [];
-  let currentBatch: string[] = [];
-  let currentLength = 0;
-
-  for (const paragraph of paragraphs) {
-    const paragraphLength = paragraph.length;
-
-    // If paragraph alone exceeds limit, it will be handled later
-    if (paragraphLength > limit) {
-      // Flush current batch first
-      if (currentBatch.length > 0) {
-        merged.push(currentBatch.join("\n\n"));
-        currentBatch = [];
-        currentLength = 0;
-      }
-      merged.push(paragraph);
+      // Set this as pending - wait for next block
+      pendingHeading = block;
       continue;
     }
 
-    // Check if we can add this paragraph
-    const separator = currentBatch.length > 0 ? "\n\n" : "";
-    const newLength = currentLength + separator.length + paragraphLength;
+    // If we have a pending heading, try to merge it with this block
+    if (pendingHeading !== null) {
+      const combinedLength = pendingHeading.length + block.length + 2; // +2 for \n\n
+
+      if (combinedLength <= limit) {
+        // Can fit together
+        currentChunk.push(pendingHeading);
+        currentChunk.push(block);
+        currentLength += combinedLength + (currentLength > 0 ? 2 : 0);
+        pendingHeading = null;
+        continue;
+      } else {
+        // Can't fit, flush heading alone
+        if (currentLength > 0) {
+          flushChunk();
+        }
+        merged.push(pendingHeading);
+        // Now try to add this block
+        pendingHeading = null;
+        // Fall through to add block normally
+      }
+    }
+
+    // Check if we can add this block to current chunk
+    const separator = currentChunk.length > 0 ? 2 : 0; // \n\n
+    const newLength = currentLength + separator + blockLength;
 
     if (newLength <= limit) {
-      currentBatch.push(paragraph);
+      currentChunk.push(block);
       currentLength = newLength;
     } else {
-      // Flush and start new batch
-      if (currentBatch.length > 0) {
-        merged.push(currentBatch.join("\n\n"));
-      }
-      currentBatch = [paragraph];
-      currentLength = paragraphLength;
+      // Flush and start new chunk
+      flushChunk();
+      currentChunk.push(block);
+      currentLength = blockLength;
     }
   }
 
-  // Flush remaining
-  if (currentBatch.length > 0) {
-    merged.push(currentBatch.join("\n\n"));
+  // Handle any remaining pending heading
+  if (pendingHeading !== null) {
+    if (currentLength + pendingHeading.length + 2 <= limit) {
+      currentChunk.push(pendingHeading);
+    } else {
+      flushChunk();
+      merged.push(pendingHeading);
+    }
   }
+
+  // Flush final chunk
+  flushChunk();
 
   return merged;
 }
@@ -387,10 +274,9 @@ function mergeParagraphs(paragraphs: string[], limit: number): string[] {
  * Split markdown text for Feishu with intelligent chunking.
  *
  * Strategy:
- * 1. Split by headings first
- * 2. Then split by paragraphs
- * 3. Finally split by lines if needed
- * 4. Merge small sections that fit within limit
+ * 1. Split into logical blocks (headings, paragraphs, tables, code blocks)
+ * 2. Merge blocks intelligently, keeping headings with their content
+ * 3. Split by lines only when single block exceeds limit
  */
 export function splitFeishuMessage(text: string, limit: number = FEISHU_TEXT_LIMIT): string[] {
   if (!text) {
@@ -408,9 +294,9 @@ export function splitFeishuMessage(text: string, limit: number = FEISHU_TEXT_LIM
     return [trimmed];
   }
 
-  // Step 1: Split by headings
-  const sections = splitByHeadings(trimmed);
+  // Step 1: Split into logical blocks
+  const blocks = splitIntoBlocks(trimmed);
 
-  // Step 2: Merge sections intelligently (also handles paragraph/line splitting internally)
-  return mergeSections(sections, limit);
+  // Step 2: Merge blocks intelligently
+  return mergeBlocks(blocks, limit);
 }
