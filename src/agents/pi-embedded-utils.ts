@@ -425,3 +425,184 @@ export function inferToolMetaFromArgs(toolName: string, args: unknown): string |
   const display = resolveToolDisplay({ name: toolName, args });
   return formatToolDetail(display);
 }
+
+/**
+ * Parse MiniMax tool calls from thinking block XML.
+ * MiniMax (via bailian) sometimes embeds tool calls as XML in thinking blocks:
+ * <minimax:tool_call>
+ *   <invoke name="exec">
+ *     <parameter name="command">...</parameter>
+ *     <parameter name="timeout">30</parameter>
+ *   </invoke>
+ * </minimax:tool_call>
+ *
+ * This extracts them and returns structured toolCall blocks.
+ */
+export function parseMinimaxToolCallsFromThinking(
+  thinking: string,
+): Array<{
+  type: "toolCall";
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}> | null {
+  if (!thinking || !/minimax:tool_call/i.test(thinking)) {
+    return null;
+  }
+
+  const toolCalls: Array<{
+    type: "toolCall";
+    id: string;
+    name: string;
+    arguments: Record<string, unknown>;
+  }> = [];
+
+  // Match <invoke name="...">...</invoke> blocks
+  const invokeRe = /<invoke\b[^>]*name=["']([^"']+)["'][^>]*>([\s\S]*?)<\/invoke>/gi;
+
+  for (const match of thinking.matchAll(invokeRe)) {
+    const toolName = match[1];
+    const innerContent = match[2] || "";
+
+    // Parse parameters
+    const params: Record<string, unknown> = {};
+    const paramRe = /<parameter\b[^>]*name=["']([^"']+)["'][^>]*>([\s\S]*?)<\/parameter>/gi;
+
+    for (const paramMatch of innerContent.matchAll(paramRe)) {
+      const paramName = paramMatch[1];
+      const paramValue = paramMatch[2]?.trim() || "";
+      // Try to parse as number if it looks like one
+      if (/^\d+$/.test(paramValue)) {
+        params[paramName] = parseInt(paramValue, 10);
+      } else if (/^\d+\.\d+$/.test(paramValue)) {
+        params[paramName] = parseFloat(paramValue);
+      } else {
+        params[paramName] = paramValue;
+      }
+    }
+
+    // Generate a unique tool call ID
+    const toolCallId = `minimax_tc_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+    toolCalls.push({
+      type: "toolCall",
+      id: toolCallId,
+      name: toolName,
+      arguments: params,
+    });
+  }
+
+  return toolCalls.length > 0 ? toolCalls : null;
+}
+
+/**
+ * Extract MiniMax tool calls from assistant message thinking blocks.
+ * If the message has thinking blocks but no toolCall blocks, this will
+ * parse any MiniMax XML tool calls from thinking and inject them as toolCall blocks.
+ */
+export function extractMinimaxToolCallsFromThinking(
+  message: AssistantMessage,
+): Array<{
+  type: "toolCall";
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}> | null {
+  if (!Array.isArray(message.content)) {
+    return null;
+  }
+
+  // Check if message already has toolCall blocks
+  const hasToolCall = message.content.some(
+    (block) => block && typeof block === "object" && block.type === "toolCall",
+  );
+  if (hasToolCall) {
+    return null;
+  }
+
+  // Find thinking blocks and parse tool calls from them
+  const allToolCalls: Array<{
+    type: "toolCall";
+    id: string;
+    name: string;
+    arguments: Record<string, unknown>;
+  }> = [];
+
+  for (const block of message.content) {
+    if (!block || typeof block !== "object") {
+      continue;
+    }
+    const record = block as unknown as Record<string, unknown>;
+    if (record.type === "thinking" && typeof record.thinking === "string") {
+      const toolCalls = parseMinimaxToolCallsFromThinking(record.thinking);
+      if (toolCalls) {
+        allToolCalls.push(...toolCalls);
+      }
+    }
+  }
+
+  return allToolCalls.length > 0 ? allToolCalls : null;
+}
+
+export type MinimaxToolCallInjectionResult = {
+  injected: boolean;
+  count: number;
+  hasMinimaxToolCall: boolean;
+};
+
+/**
+ * Check if thinking content contains MiniMax tool call XML.
+ */
+export function hasMinimaxToolCallInThinking(message: AssistantMessage): boolean {
+  if (!Array.isArray(message.content)) {
+    return false;
+  }
+
+  for (const block of message.content) {
+    if (!block || typeof block !== "object") {
+      continue;
+    }
+    const record = block as unknown as Record<string, unknown>;
+    if (record.type === "thinking" && typeof record.thinking === "string") {
+      if (/minimax:tool_call/i.test(record.thinking)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Inject MiniMax tool calls from thinking into message content.
+ * This should be called on assistant messages before they are processed downstream.
+ */
+export function injectMinimaxToolCallsFromThinking(
+  message: AssistantMessage,
+): MinimaxToolCallInjectionResult {
+  const hasMinimaxToolCall = hasMinimaxToolCallInThinking(message);
+
+  const toolCalls = extractMinimaxToolCallsFromThinking(message);
+  if (!toolCalls || toolCalls.length === 0) {
+    return {
+      injected: false,
+      count: 0,
+      hasMinimaxToolCall,
+    };
+  }
+
+  if (!Array.isArray(message.content)) {
+    return {
+      injected: false,
+      count: 0,
+      hasMinimaxToolCall,
+    };
+  }
+
+  // Append toolCall blocks to message content
+  message.content.push(...toolCalls);
+  return {
+    injected: true,
+    count: toolCalls.length,
+    hasMinimaxToolCall,
+  };
+}

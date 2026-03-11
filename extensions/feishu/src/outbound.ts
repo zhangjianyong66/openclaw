@@ -3,6 +3,7 @@ import path from "path";
 import type { ChannelOutboundAdapter } from "openclaw/plugin-sdk/feishu";
 import { resolveFeishuAccount } from "./accounts.js";
 import { sendMediaFeishu } from "./media.js";
+import { splitFeishuMessage } from "./message-splitter.js";
 import { getFeishuRuntime } from "./runtime.js";
 import { sendMarkdownCardFeishu, sendMessageFeishu } from "./send.js";
 
@@ -78,9 +79,9 @@ async function sendOutboundText(params: {
 
 export const feishuOutbound: ChannelOutboundAdapter = {
   deliveryMode: "direct",
-  chunker: (text, limit) => getFeishuRuntime().channel.text.chunkMarkdownText(text, limit),
+  chunker: (text, limit) => splitFeishuMessage(text, limit),
   chunkerMode: "markdown",
-  textChunkLimit: 4000,
+  textChunkLimit: 1900,
   sendText: async ({ cfg, to, text, accountId, replyToId, threadId }) => {
     const replyToMessageId = resolveReplyToMessageId({ replyToId, threadId });
     // Scheme A compatibility shim:

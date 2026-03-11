@@ -15,11 +15,16 @@ import {
   extractThinkingFromTaggedStream,
   extractThinkingFromTaggedText,
   formatReasoningMessage,
+  injectMinimaxToolCallsFromThinking,
   promoteThinkingTagsToBlocks,
 } from "./pi-embedded-utils.js";
 
 /** Shown when the model ends with stopReason "stop" but produced no user-visible content. */
 export const EMPTY_REPLY_FALLBACK_TEXT = "模型未返回可展示内容，请重试。";
+
+/** Shown when MiniMax tool calls were detected in thinking but could not be parsed/executed. */
+export const MINIMAX_TOOL_CALL_FAILED_FALLBACK_TEXT =
+  "抱歉，我本来想执行一个操作，但是遇到了技术问题没能完成。可以请你重新描述一下需求吗？或者换个方式问我也可以~";
 
 const stripTrailingDirective = (text: string): string => {
   const openIndex = text.lastIndexOf("[[");
@@ -266,7 +271,22 @@ export function handleMessageEnd(
   ctx.recordAssistantUsage((assistantMessage as { usage?: unknown }).usage);
   promoteThinkingTagsToBlocks(assistantMessage);
 
+  // Extract MiniMax tool calls from thinking blocks and inject them as toolCall blocks.
+  // This fixes the issue where MiniMax (via bailian) puts tool calls in thinking blocks
+  // instead of proper toolCall blocks, causing the session to "stop" without executing tools.
+  const injectionResult = injectMinimaxToolCallsFromThinking(assistantMessage);
+  if (injectionResult.injected) {
+    ctx.log.debug(
+      `handleMessageEnd: injected ${injectionResult.count} MiniMax toolCall(s) from thinking for runId=${ctx.params.runId}`,
+    );
+  }
+
   const rawText = extractAssistantText(assistantMessage);
+
+  // Check if MiniMax tool calls were detected but not injected (parse failed).
+  // In this case, we should show a fallback message to inform the user.
+  const minimaxToolCallFailed =
+    injectionResult.hasMinimaxToolCall && !injectionResult.injected && !rawText.trim();
   appendRawStream({
     ts: Date.now(),
     event: "assistant_message_end",
@@ -328,7 +348,10 @@ export function handleMessageEnd(
   ) {
     // Model ended normally but produced no user-visible content (e.g. only thinking or garbage).
     // Emit a fallback so the session does not appear to hang.
-    const fallbackText = EMPTY_REPLY_FALLBACK_TEXT;
+    // If MiniMax tool calls were detected but not injected, show a more specific message.
+    const fallbackText = minimaxToolCallFailed
+      ? MINIMAX_TOOL_CALL_FAILED_FALLBACK_TEXT
+      : EMPTY_REPLY_FALLBACK_TEXT;
     emitAgentEvent({
       runId: ctx.params.runId,
       stream: "assistant",
