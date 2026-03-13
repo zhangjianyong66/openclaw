@@ -92,7 +92,7 @@ export function coerceDisplayValue(
   value: unknown,
   opts: CoerceDisplayValueOptions = {},
 ): string | undefined {
-  const maxStringChars = opts.maxStringChars ?? 160;
+  const maxStringChars = opts.maxStringChars ?? 9999999;
   const maxArrayEntries = opts.maxArrayEntries ?? 3;
 
   if (value === null || value === undefined) {
