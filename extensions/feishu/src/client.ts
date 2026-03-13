@@ -7,10 +7,59 @@ export const FEISHU_HTTP_TIMEOUT_MS = 30_000;
 export const FEISHU_HTTP_TIMEOUT_MAX_MS = 300_000;
 export const FEISHU_HTTP_TIMEOUT_ENV_VAR = "OPENCLAW_FEISHU_HTTP_TIMEOUT_MS";
 
+/**
+ * Check if a hostname should bypass the proxy.
+ * Feishu/Lark domains are always forced to bypass proxy to avoid ECONNRESET issues.
+ */
+function shouldBypassProxy(hostname: string): boolean {
+  // Force bypass proxy for Feishu/Lark domains to avoid proxy-related connection issues
+  const feishuHosts = [
+    "feishu.cn",
+    "open.feishu.cn",
+    "lark.com",
+    "open.larksuite.com",
+    "lark.cn",
+    "open.lark.cn",
+  ];
+  const targetHost = hostname.toLowerCase();
+  if (feishuHosts.some((host) => targetHost === host || targetHost.endsWith("." + host))) {
+    return true;
+  }
+
+  // Also check no_proxy environment variable for other domains
+  const noProxy = process.env.no_proxy || process.env.NO_PROXY || "";
+  if (!noProxy) return false;
+
+  const noProxyList = noProxy.split(",").map((s) => s.trim().toLowerCase());
+
+  return noProxyList.some((pattern) => {
+    if (!pattern) return false;
+    if (pattern === "*") return true;
+    if (pattern.startsWith(".")) {
+      // .example.cn matches example.cn and any subdomain
+      return targetHost.endsWith(pattern) || targetHost === pattern.slice(1);
+    }
+    return targetHost === pattern || targetHost.endsWith("." + pattern);
+  });
+}
+
 function getWsProxyAgent(): HttpsProxyAgent<string> | undefined {
-  // Feishu WebSocket should never use proxy - always connect directly
-  // to avoid ECONNRESET and 400 errors when proxy is configured
-  return undefined;
+  const proxyUrl =
+    process.env.https_proxy ||
+    process.env.HTTPS_PROXY ||
+    process.env.http_proxy ||
+    process.env.HTTP_PROXY;
+  if (!proxyUrl) return undefined;
+
+  // Check no_proxy to bypass proxy for specific domains
+  const feishuHosts = ["open.feishu.cn", "feishu.cn", "lark.cn", "open.lark.cn"];
+  for (const host of feishuHosts) {
+    if (shouldBypassProxy(host)) {
+      return undefined;
+    }
+  }
+
+  return new HttpsProxyAgent(proxyUrl);
 }
 
 // Multi-account client cache
