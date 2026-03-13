@@ -372,6 +372,19 @@ export function createExecTool(
 
       const mergedEnv = params.env ? { ...baseEnv, ...params.env } : baseEnv;
 
+      // Inject skill env vars from config (if not already set)
+      if (defaults?.config?.skills?.entries) {
+        for (const [, skillConfig] of Object.entries(defaults.config.skills.entries)) {
+          if (skillConfig.env) {
+            for (const [key, value] of Object.entries(skillConfig.env)) {
+              if (!(key in mergedEnv)) {
+                mergedEnv[key] = value;
+              }
+            }
+          }
+        }
+      }
+
       const env = sandbox
         ? buildSandboxEnv({
             defaultPath: DEFAULT_PATH,
