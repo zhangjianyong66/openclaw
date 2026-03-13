@@ -8,13 +8,9 @@ export const FEISHU_HTTP_TIMEOUT_MAX_MS = 300_000;
 export const FEISHU_HTTP_TIMEOUT_ENV_VAR = "OPENCLAW_FEISHU_HTTP_TIMEOUT_MS";
 
 function getWsProxyAgent(): HttpsProxyAgent<string> | undefined {
-  const proxyUrl =
-    process.env.https_proxy ||
-    process.env.HTTPS_PROXY ||
-    process.env.http_proxy ||
-    process.env.HTTP_PROXY;
-  if (!proxyUrl) return undefined;
-  return new HttpsProxyAgent(proxyUrl);
+  // Feishu WebSocket should never use proxy - always connect directly
+  // to avoid ECONNRESET and 400 errors when proxy is configured
+  return undefined;
 }
 
 // Multi-account client cache

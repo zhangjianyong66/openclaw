@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>ai.openclaw.gateway</string>
+    
+    <key>Comment</key>
+    <string>OpenClaw Gateway (v2026.3.8.sp5)</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>1</integer>
+    <key>Umask</key>
+    <integer>63</integer>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/Users/zhangjianyong/.nvm/versions/node/v22.22.1/bin/node</string>
+      <string>/Users/zhangjianyong/project/openclaw/dist/index.js</string>
+      <string>gateway</string>
+      <string>--port</string>
+      <string>18789</string>
+    </array>
+    
+    <key>StandardOutPath</key>
+    <string>/Users/zhangjianyong/.openclaw/logs/gateway.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/zhangjianyong/.openclaw/logs/gateway.err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+    <key>HOME</key>
+    <string>/Users/zhangjianyong</string>
+    <key>TMPDIR</key>
+    <string>/var/folders/7v/gmkbdj0x2tb4wx6yyrrz_tfc0000gn/T/</string>
+    <key>NO_PROXY</key>
+    <string>open.feishu.cn,feishu.cn</string>
+    <key>http_proxy</key>
+    <string>http://127.0.0.1:10808</string>
+    <key>https_proxy</key>
+    <string>http://127.0.0.1:10808</string>
+    <key>no_proxy</key>
+    <string>open.feishu.cn,feishu.cn</string>
+    <key>all_proxy</key>
+    <string>socks5://127.0.0.1:10808</string>
+    <key>NODE_EXTRA_CA_CERTS</key>
+    <string>/etc/ssl/cert.pem</string>
+    <key>NODE_USE_SYSTEM_CA</key>
+    <string>1</string>
+    <key>PATH</key>
+    <string>/Users/zhangjianyong/.local/bin:/Users/zhangjianyong/.npm-global/bin:/Users/zhangjianyong/bin:/Users/zhangjianyong/.volta/bin:/Users/zhangjianyong/.asdf/shims:/Users/zhangjianyong/.bun/bin:/Users/zhangjianyong/Library/Application Support/fnm/aliases/default/bin:/Users/zhangjianyong/.fnm/aliases/default/bin:/Users/zhangjianyong/Library/pnpm:/Users/zhangjianyong/.local/share/pnpm:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>OPENCLAW_GATEWAY_PORT</key>
+    <string>18789</string>
+    <key>OPENCLAW_LAUNCHD_LABEL</key>
+    <string>ai.openclaw.gateway</string>
+    <key>OPENCLAW_SYSTEMD_UNIT</key>
+    <string>openclaw-gateway.service</string>
+    <key>OPENCLAW_WINDOWS_TASK_NAME</key>
+    <string>OpenClaw Gateway</string>
+    <key>OPENCLAW_SERVICE_MARKER</key>
+    <string>openclaw</string>
+    <key>OPENCLAW_SERVICE_KIND</key>
+    <string>gateway</string>
+    <key>OPENCLAW_SERVICE_VERSION</key>
+    <string>2026.3.8.sp5</string>
+    </dict>
+  </dict>
+</plist>
