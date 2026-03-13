@@ -163,6 +163,10 @@ export const zh_CN: TranslationMap = {
     showCronSessions: "显示定时任务会话",
     showCronSessionsHidden: "显示定时任务会话 (已隐藏 {count} 个)",
     onboardingDisabled: "引导期间禁用",
+    toolOutputTitle: "工具输出",
+    toolOutputClose: "关闭侧边栏",
+    toolOutputViewRawText: "查看原始文本",
+    toolOutputEmpty: "暂无内容",
   },
   languages: {
     en: "English",
