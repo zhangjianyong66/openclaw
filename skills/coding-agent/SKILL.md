@@ -1,6 +1,6 @@
 ---
 name: coding-agent
-description: 'Delegate coding tasks to Codex, Claude Code, or Pi agents via background process. Use when: (1) building/creating new features or apps, (2) reviewing PRs (spawn in temp dir), (3) refactoring large codebases, (4) iterative coding that needs file exploration. NOT for: simple one-liner fixes (just edit), reading code (use read tool), thread-bound ACP harness requests in chat (for example spawn/run Codex or Claude Code in a Discord thread; use sessions_spawn with runtime:"acp"), or any work in ~/clawd workspace (never spawn agents here). Claude Code: use --print --permission-mode bypassPermissions (no PTY). Codex/Pi/OpenCode: pty:true required.'
+description: 'Delegate coding tasks to Codex, Claude Code, or Pi agents via background process. AUTO-TRIGGER when user mentions: build/create/implement/develop/refactor/fix bug/debug/review PR/code review. Use when: (1) building/creating new features or apps, (2) reviewing PRs (spawn in temp dir), (3) refactoring large codebases, (4) iterative coding that needs file exploration, (5) debugging complex issues, (6) code review requests. NOT for: simple one-liner fixes (just edit), reading code (use read tool), thread-bound ACP harness requests in chat (for example spawn/run Codex or Claude Code in a Discord thread; use sessions_spawn with runtime:"acp"), or any work in ~/clawd workspace (never spawn agents here). Claude Code: use --print --permission-mode bypassPermissions (no PTY). Codex/Pi/OpenCode: pty:true required.'
 metadata:
   {
     "openclaw": { "emoji": "🧩", "requires": { "anyBins": ["claude", "codex", "opencode", "pi"] } },
@@ -10,6 +10,31 @@ metadata:
 # Coding Agent (bash-first)
 
 Use **bash** (with optional background mode) for all coding agent work. Simple and effective.
+
+## Auto-Trigger Rules (NEW)
+
+**自动触发关键词**（听到这些词优先用 coder agent）：
+
+- 创建/构建：`写个...`、`实现...`、`开发...`、`搭建...`、`做一个...`
+- 修复/调试：`fix bug`、`debug`、`排查...`、`为什么报错`、`解决...问题`
+- 重构/优化：`重构...`、`优化代码`、`改进...`、`改写...`
+- 审查：`review PR`、`代码审查`、`看看这个 PR`
+- 复杂查询：`分析一下...`、`理解一下...`（涉及多文件时）
+
+**自动判断标准**：
+
+1. 涉及多文件修改 → 用 coder agent
+2. 需要理解项目结构才能回答 → 用 coder agent
+3. 报错信息复杂/看不懂 → 用 coder agent
+4. 自己尝试后搞不定 → 自动转 coder agent
+5. 用户明确指定：`用 codex`、`让 claude 看看` → 按指定执行
+
+**自己处理的情况**：
+
+- 单行代码修改
+- 读代码理解逻辑
+- 配置项调整
+- 简单文件操作
 
 ## ⚠️ PTY Mode: Codex/Pi/OpenCode yes, Claude Code no
 
