@@ -7,7 +7,6 @@ import { getChannelPlugin, normalizeChannelId } from "../../channels/plugins/ind
 import { formatThreadBindingDurationLabel } from "../../channels/thread-bindings-messages.js";
 import { parseDurationMs } from "../../cli/parse-duration.js";
 import { isRestartEnabled } from "../../config/commands.js";
-import { logVerbose } from "../../globals.js";
 import { getSessionBindingService } from "../../infra/outbound/session-binding-service.js";
 import type { SessionBindingRecord } from "../../infra/outbound/session-binding-service.js";
 import { scheduleGatewaySigusr1Restart, triggerOpenClawRestart } from "../../infra/restart.js";
@@ -174,11 +173,9 @@ export const handleActivationCommand: CommandHandler = async (params, allowTextC
       reply: { text: "⚙️ Group activation only applies to group chats." },
     };
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /activation from unauthorized sender in group: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/activation");
+  if (authReject) {
+    return authReject;
   }
   if (!activationCommand.mode) {
     return {
@@ -249,11 +246,9 @@ export const handleUsageCommand: CommandHandler = async (params, allowTextComman
   if (normalized !== "/usage" && !normalized.startsWith("/usage ")) {
     return null;
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /usage from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/usage");
+  if (authReject) {
+    return authReject;
   }
 
   const rawArgs = normalized === "/usage" ? "" : normalized.slice("/usage".length).trim();
@@ -335,11 +330,9 @@ export const handleFastCommand: CommandHandler = async (params, allowTextCommand
   if (normalized !== "/fast" && !normalized.startsWith("/fast ")) {
     return null;
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /fast from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/fast");
+  if (authReject) {
+    return authReject;
   }
 
   const rawArgs = normalized === "/fast" ? "" : normalized.slice("/fast".length).trim();
@@ -393,11 +386,9 @@ export const handleSessionCommand: CommandHandler = async (params, allowTextComm
   if (!/^\/session(?:\s|$)/.test(normalized)) {
     return null;
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /session from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/session");
+  if (authReject) {
+    return authReject;
   }
 
   const rest = normalized.slice(SESSION_COMMAND_PREFIX.length).trim();
@@ -587,11 +578,9 @@ export const handleRestartCommand: CommandHandler = async (params, allowTextComm
   if (params.command.commandBodyNormalized !== "/restart") {
     return null;
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /restart from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/restart");
+  if (authReject) {
+    return authReject;
   }
   if (!isRestartEnabled(params.cfg)) {
     return {

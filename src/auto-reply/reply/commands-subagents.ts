@@ -1,5 +1,5 @@
 import { listControlledSubagentRuns } from "../../agents/subagent-control.js";
-import { logVerbose } from "../../globals.js";
+import { rejectUnauthorizedCommand } from "./command-gates.js";
 import { handleSubagentsAgentsAction } from "./commands-subagents/action-agents.js";
 import { handleSubagentsFocusAction } from "./commands-subagents/action-focus.js";
 import { handleSubagentsHelpAction } from "./commands-subagents/action-help.js";
@@ -33,11 +33,9 @@ export const handleSubagentsCommand: CommandHandler = async (params, allowTextCo
     return null;
   }
 
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring ${handledPrefix} from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, handledPrefix);
+  if (authReject) {
+    return authReject;
   }
 
   const rest = normalized.slice(handledPrefix.length).trim();

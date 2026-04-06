@@ -166,6 +166,11 @@ export async function buildStatusText(params: {
     isGroup,
     defaultGroupActivation,
   } = params;
+  if (!command.isAuthorizedSender) {
+    return {
+      text: "⚠️ You are not authorized to use /status commands. Configure commands.allowFrom in openclaw.json to enable access.",
+    };
+  }
   const statusAgentId = sessionKey
     ? resolveSessionAgentId({ sessionKey, config: cfg })
     : resolveDefaultAgentId(cfg);

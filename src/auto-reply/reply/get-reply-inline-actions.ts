@@ -208,10 +208,15 @@ export async function handleInlineActions(params: {
   if (skillInvocation) {
     if (!command.isAuthorizedSender) {
       logVerbose(
-        `Ignoring /${skillInvocation.command.name} from unauthorized sender: ${command.senderId || "<unknown>"}`,
+        `Rejecting /${skillInvocation.command.name} from unauthorized sender: ${command.senderId || "<unknown>"}`,
       );
       typing.cleanup();
-      return { kind: "reply", reply: undefined };
+      return {
+        kind: "reply",
+        reply: {
+          text: `⚠️ You are not authorized to use /${skillInvocation.command.name}. Configure commands.allowFrom in openclaw.json to enable access.`,
+        },
+      };
     }
 
     const dispatch = skillInvocation.command.dispatch;

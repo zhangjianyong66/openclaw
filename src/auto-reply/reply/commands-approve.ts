@@ -1,14 +1,11 @@
-import {
-  getChannelPlugin,
-  resolveChannelApprovalCapability,
-} from "../../channels/plugins/index.js";
 import { callGateway } from "../../gateway/call.js";
-import { logVerbose } from "../../globals.js";
 import { isApprovalNotFoundError } from "../../infra/approval-errors.js";
 import { resolveApprovalCommandAuthorization } from "../../infra/channel-approval-auth.js";
 import { GATEWAY_CLIENT_MODES, GATEWAY_CLIENT_NAMES } from "../../utils/message-channel.js";
-import { resolveChannelAccountId } from "./channel-context.js";
-import { requireGatewayClientScopeForInternalChannel } from "./command-gates.js";
+import {
+  rejectUnauthorizedCommand,
+  requireGatewayClientScopeForInternalChannel,
+} from "./command-gates.js";
 import type { CommandHandler } from "./commands-types.js";
 
 const COMMAND_REGEX = /^\/?approve(?:\s|$)/i;
@@ -134,49 +131,9 @@ export const handleApproveCommand: CommandHandler = async (params, allowTextComm
     return { shouldContinue: false, reply: { text: parsed.error } };
   }
 
-  const isPluginId = parsed.id.startsWith("plugin:");
-  const effectiveAccountId = resolveChannelAccountId({
-    cfg: params.cfg,
-    ctx: params.ctx,
-    command: params.command,
-  });
-  const approvalCapability = resolveChannelApprovalCapability(
-    getChannelPlugin(params.command.channel),
-  );
-  const approveCommandBehavior = approvalCapability?.resolveApproveCommandBehavior?.({
-    cfg: params.cfg,
-    accountId: effectiveAccountId,
-    senderId: params.command.senderId,
-    approvalKind: isPluginId ? "plugin" : "exec",
-  });
-  if (approveCommandBehavior?.kind === "ignore") {
-    return { shouldContinue: false };
-  }
-  if (approveCommandBehavior?.kind === "reply") {
-    return { shouldContinue: false, reply: { text: approveCommandBehavior.text } };
-  }
-  const execApprovalAuthorization = resolveApprovalCommandAuthorization({
-    cfg: params.cfg,
-    channel: params.command.channel,
-    accountId: effectiveAccountId,
-    senderId: params.command.senderId,
-    kind: "exec",
-  });
-  const pluginApprovalAuthorization = resolveApprovalCommandAuthorization({
-    cfg: params.cfg,
-    channel: params.command.channel,
-    accountId: effectiveAccountId,
-    senderId: params.command.senderId,
-    kind: "plugin",
-  });
-  const hasExplicitApprovalAuthorization =
-    (execApprovalAuthorization.explicit && execApprovalAuthorization.authorized) ||
-    (pluginApprovalAuthorization.explicit && pluginApprovalAuthorization.authorized);
-  if (!params.command.isAuthorizedSender && !hasExplicitApprovalAuthorization) {
-    logVerbose(
-      `Ignoring /approve from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/approve");
+  if (authReject) {
+    return authReject;
   }
 
   const missingScope = requireGatewayClientScopeForInternalChannel(params, {

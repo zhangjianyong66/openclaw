@@ -10,9 +10,9 @@ import {
   resolveSessionFilePath,
   resolveSessionFilePathOptions,
 } from "../../config/sessions.js";
-import { logVerbose } from "../../globals.js";
 import { enqueueSystemEvent } from "../../infra/system-events.js";
 import { formatContextUsageShort, formatTokenCount } from "../status.js";
+import { rejectUnauthorizedCommand } from "./command-gates.js";
 import type { CommandHandler } from "./commands-types.js";
 import { stripMentions, stripStructuralPrefixes } from "./mentions.js";
 import { incrementCompactionCount } from "./session-updates.js";
@@ -83,11 +83,9 @@ export const handleCompactCommand: CommandHandler = async (params) => {
   if (!compactRequested) {
     return null;
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /compact from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/compact");
+  if (authReject) {
+    return authReject;
   }
   if (!params.sessionEntry?.sessionId) {
     return {

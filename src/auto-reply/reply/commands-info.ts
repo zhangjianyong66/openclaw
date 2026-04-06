@@ -1,7 +1,6 @@
 import { resolveSessionAgentId } from "../../agents/agent-scope.js";
 import { resolveEffectiveToolInventory } from "../../agents/tools-effective-inventory.js";
 import { getChannelPlugin } from "../../channels/plugins/index.js";
-import { logVerbose } from "../../globals.js";
 import { listSkillCommandsForAgents } from "../skill-commands.js";
 import {
   buildCommandsMessage,
@@ -11,6 +10,7 @@ import {
 } from "../status.js";
 import { buildThreadingToolContext } from "./agent-runner-utils.js";
 import { resolveChannelAccountId } from "./channel-context.js";
+import { rejectUnauthorizedCommand } from "./command-gates.js";
 import { buildContextReply } from "./commands-context-report.js";
 import { buildExportSessionReply } from "./commands-export-session.js";
 import { buildStatusReply } from "./commands-status.js";
@@ -25,11 +25,9 @@ export const handleHelpCommand: CommandHandler = async (params, allowTextCommand
   if (params.command.commandBodyNormalized !== "/help") {
     return null;
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /help from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/help");
+  if (authReject) {
+    return authReject;
   }
   return {
     shouldContinue: false,
@@ -44,11 +42,9 @@ export const handleCommandsListCommand: CommandHandler = async (params, allowTex
   if (params.command.commandBodyNormalized !== "/commands") {
     return null;
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /commands from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/commands");
+  if (authReject) {
+    return authReject;
   }
   const skillCommands =
     params.skillCommands ??
@@ -98,11 +94,9 @@ export const handleToolsCommand: CommandHandler = async (params, allowTextComman
   } else {
     return null;
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /tools from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/tools");
+  if (authReject) {
+    return authReject;
   }
 
   try {
@@ -177,11 +171,9 @@ export const handleStatusCommand: CommandHandler = async (params, allowTextComma
   if (!statusRequested) {
     return null;
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /status from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/status");
+  if (authReject) {
+    return authReject;
   }
   const reply = await buildStatusReply({
     cfg: params.cfg,
@@ -213,11 +205,9 @@ export const handleContextCommand: CommandHandler = async (params, allowTextComm
   if (normalized !== "/context" && !normalized.startsWith("/context ")) {
     return null;
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /context from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/context");
+  if (authReject) {
+    return authReject;
   }
   return { shouldContinue: false, reply: await buildContextReply(params) };
 };
@@ -235,11 +225,9 @@ export const handleExportSessionCommand: CommandHandler = async (params, allowTe
   ) {
     return null;
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /export-session from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/export-session");
+  if (authReject) {
+    return authReject;
   }
   return { shouldContinue: false, reply: await buildExportSessionReply(params) };
 };
@@ -251,11 +239,9 @@ export const handleWhoamiCommand: CommandHandler = async (params, allowTextComma
   if (params.command.commandBodyNormalized !== "/whoami") {
     return null;
   }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /whoami from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/whoami");
+  if (authReject) {
+    return authReject;
   }
   const senderId = params.ctx.SenderId ?? "";
   const senderUsername = params.ctx.SenderUsername ?? "";

@@ -17,6 +17,8 @@ export type McpServerConfig = {
   headers?: Record<string, string | number | boolean>;
   /** Optional connection timeout in milliseconds. */
   connectionTimeoutMs?: number;
+  /** Tool timeout in seconds for MCP server tools */
+  toolTimeout?: number;
   [key: string]: unknown;
 };
 

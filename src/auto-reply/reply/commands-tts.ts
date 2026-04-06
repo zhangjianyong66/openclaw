@@ -1,4 +1,3 @@
-import { logVerbose } from "../../globals.js";
 import {
   canonicalizeSpeechProviderId,
   getSpeechProvider,
@@ -22,6 +21,7 @@ import {
   textToSpeech,
 } from "../../tts/tts.js";
 import type { ReplyPayload } from "../types.js";
+import { rejectUnauthorizedCommand } from "./command-gates.js";
 import type { CommandHandler } from "./commands-types.js";
 
 type ParsedTtsCommand = {
@@ -97,11 +97,9 @@ export const handleTtsCommands: CommandHandler = async (params, allowTextCommand
     return null;
   }
 
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring TTS command from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/tts");
+  if (authReject) {
+    return authReject;
   }
 
   const config = resolveTtsConfig(params.cfg);

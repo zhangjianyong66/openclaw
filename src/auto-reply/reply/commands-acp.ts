@@ -1,5 +1,7 @@
-import { logVerbose } from "../../globals.js";
-import { requireGatewayClientScopeForInternalChannel } from "./command-gates.js";
+import {
+  rejectUnauthorizedCommand,
+  requireGatewayClientScopeForInternalChannel,
+} from "./command-gates.js";
 import {
   handleAcpDoctorAction,
   handleAcpInstallAction,
@@ -82,9 +84,9 @@ export const handleAcpCommand: CommandHandler = async (params, allowTextCommands
     return null;
   }
 
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(`Ignoring /acp from unauthorized sender: ${params.command.senderId || "<unknown>"}`);
-    return { shouldContinue: false };
+  const authReject = rejectUnauthorizedCommand(params, "/acp");
+  if (authReject) {
+    return authReject;
   }
 
   const rest = normalized.slice(COMMAND.length).trim();

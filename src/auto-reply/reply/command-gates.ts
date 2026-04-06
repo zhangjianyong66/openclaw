@@ -21,12 +21,14 @@ export function rejectUnauthorizedCommand(
     return null;
   }
   logVerbose(
-    `Ignoring ${commandLabel} from unauthorized sender: ${redactIdentifier(params.command.senderId)}`,
+    `Rejecting ${commandLabel} from unauthorized sender: ${redactIdentifier(params.command.senderId)}`,
   );
-  if (params.ctx.CommandSource === "native") {
-    return buildNativeCommandGateReply("You are not authorized to use this command.");
-  }
-  return { shouldContinue: false };
+  return {
+    shouldContinue: false,
+    reply: {
+      text: `⚠️ You are not authorized to use ${commandLabel} commands. Configure commands.allowFrom in openclaw.json to enable access.`,
+    },
+  };
 }
 
 export function rejectNonOwnerCommand(

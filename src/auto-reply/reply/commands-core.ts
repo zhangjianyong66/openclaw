@@ -7,6 +7,7 @@ import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
 import { isAcpSessionKey, resolveAgentIdFromSessionKey } from "../../routing/session-key.js";
 import { resolveSendPolicy } from "../../sessions/send-policy.js";
 import { shouldHandleTextCommands } from "../commands-registry.js";
+import { rejectUnauthorizedCommand } from "./command-gates.js";
 import { resolveBoundAcpThreadSessionKey } from "./commands-acp/targets.js";
 import type {
   CommandHandler,
@@ -226,15 +227,15 @@ export async function handleCommands(params: HandleCommandsParams): Promise<Comm
   }
   const resetMatch = params.command.commandBodyNormalized.match(/^\/(new|reset)(?:\s|$)/);
   const resetRequested = Boolean(resetMatch);
-  if (resetRequested && !params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /reset from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
+  if (resetRequested) {
+    const authReject = rejectUnauthorizedCommand(params, "/reset");
+    if (authReject) {
+      return authReject;
+    }
   }
 
   // Trigger internal hook for reset/new commands
-  if (resetRequested && params.command.isAuthorizedSender) {
+  if (resetRequested) {
     const commandAction: ResetCommandAction = resetMatch?.[1] === "reset" ? "reset" : "new";
     const resetTail =
       resetMatch != null
