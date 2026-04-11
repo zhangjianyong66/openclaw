@@ -91,6 +91,7 @@ export type FeishuMediaInfo = {
 export type FeishuToolsConfig = {
   doc?: boolean;
   chat?: boolean;
+  media?: boolean;
   wiki?: boolean;
   drive?: boolean;
   perm?: boolean;
