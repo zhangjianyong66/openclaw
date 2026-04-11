@@ -27,6 +27,7 @@ vi.spyOn(toolAccountModule, "createFeishuToolClient").mockImplementation(() =>
 vi.spyOn(toolAccountModule, "resolveAnyEnabledFeishuToolsConfig").mockReturnValue({
   doc: true,
   chat: false,
+  media: false,
   wiki: false,
   drive: false,
   perm: false,

@@ -36,6 +36,7 @@ const proxyEnvKeys = ["https_proxy", "HTTPS_PROXY", "http_proxy", "HTTP_PROXY"] 
 type ProxyEnvKey = (typeof proxyEnvKeys)[number];
 const registerFeishuDocToolsMock = vi.hoisted(() => vi.fn());
 const registerFeishuChatToolsMock = vi.hoisted(() => vi.fn());
+const registerFeishuMediaToolsMock = vi.hoisted(() => vi.fn());
 const registerFeishuWikiToolsMock = vi.hoisted(() => vi.fn());
 const registerFeishuDriveToolsMock = vi.hoisted(() => vi.fn());
 const registerFeishuPermToolsMock = vi.hoisted(() => vi.fn());
@@ -65,6 +66,10 @@ vi.mock("./docx.js", () => ({
 
 vi.mock("./chat.js", () => ({
   registerFeishuChatTools: registerFeishuChatToolsMock,
+}));
+
+vi.mock("./media-tool.js", () => ({
+  registerFeishuMediaTools: registerFeishuMediaToolsMock,
 }));
 
 vi.mock("./wiki.js", () => ({
