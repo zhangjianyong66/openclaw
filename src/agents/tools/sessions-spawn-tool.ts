@@ -108,7 +108,7 @@ const SessionsSpawnToolSchema = Type.Object({
   lightContext: Type.Optional(
     Type.Boolean({
       description:
-        "When true, spawned subagent runs use lightweight bootstrap context. Only applies to runtime='subagent'.",
+        "When true, spawned subagent runs use lightweight bootstrap context. Only applies to runtime='subagent'; ignored for runtime='acp'.",
     }),
   ),
 
@@ -174,11 +174,9 @@ export function createSessionsSpawnTool(
       const cleanup =
         params.cleanup === "keep" || params.cleanup === "delete" ? params.cleanup : "keep";
       const sandbox = params.sandbox === "require" ? "require" : "inherit";
-      const streamTo = params.streamTo === "parent" ? "parent" : undefined;
-      const lightContext = params.lightContext === true;
-      if (runtime === "acp" && lightContext) {
-        throw new Error("lightContext is only supported for runtime='subagent'.");
-      }
+      const streamTo = runtime === "acp" && params.streamTo === "parent" ? "parent" : undefined;
+      const lightContext = runtime === "subagent" && params.lightContext === true;
+      const normalizedResumeSessionId = runtime === "acp" ? resumeSessionId : undefined;
       // Back-compat: older callers used timeoutSeconds for this tool.
       const timeoutSecondsCandidate =
         typeof params.runTimeoutSeconds === "number"
@@ -200,20 +198,6 @@ export function createSessionsSpawnTool(
           }>)
         : undefined;
 
-      if (streamTo && runtime !== "acp") {
-        return jsonResult({
-          status: "error",
-          error: `streamTo is only supported for runtime=acp; got runtime=${runtime}`,
-        });
-      }
-
-      if (resumeSessionId && runtime !== "acp") {
-        return jsonResult({
-          status: "error",
-          error: `resumeSessionId is only supported for runtime=acp; got runtime=${runtime}`,
-        });
-      }
-
       if (runtime === "acp") {
         const { isSpawnAcpAcceptedResult, spawnAcpDirect } = await loadAcpSpawnModule();
         if (Array.isArray(attachments) && attachments.length > 0) {
@@ -228,7 +212,7 @@ export function createSessionsSpawnTool(
             task,
             label: label || undefined,
             agentId: requestedAgentId,
-            resumeSessionId,
+            resumeSessionId: normalizedResumeSessionId,
             cwd,
             mode: mode === "run" || mode === "session" ? mode : undefined,
             thread,
