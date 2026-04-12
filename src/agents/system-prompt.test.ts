@@ -383,6 +383,12 @@ describe("buildAgentSystemPrompt", () => {
     expect(prompt).toContain(
       'do not call `message` with `action=thread-create`; use `sessions_spawn` (`runtime: "acp"`, `thread: true`) as the single thread creation path',
     );
+    expect(prompt).toContain(
+      'For internal OpenClaw agent collaboration among `main`, `coder`, `squirrel`, and `pencil`, default to `sessions_spawn` with `runtime: "subagent"`.',
+    );
+    expect(prompt).toContain(
+      'For `runtime: "subagent"`, do not pass `streamTo` or `resumeSessionId`; for `runtime: "acp"`, do not pass `lightContext`.',
+    );
   });
 
   it("omits ACP thread-spawn guidance when the runtime capability is absent", () => {

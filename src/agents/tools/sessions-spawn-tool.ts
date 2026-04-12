@@ -282,8 +282,9 @@ export function createSessionsSpawnTool(
       const sandbox = params.sandbox === "require" ? "require" : "inherit";
       const context =
         params.context === "fork" || params.context === "isolated" ? params.context : undefined;
-      const streamTo = params.streamTo === "parent" ? "parent" : undefined;
-      const lightContext = params.lightContext === true;
+      const streamTo = runtime === "acp" && params.streamTo === "parent" ? "parent" : undefined;
+      const lightContext = runtime === "subagent" && params.lightContext === true;
+      const normalizedResumeSessionId = runtime === "acp" ? resumeSessionId : undefined;
       const roleContext = requestedAgentId ? { role: requestedAgentId } : {};
       if (runtime === "acp" && !acpAvailable) {
         return jsonResult({
@@ -291,9 +292,6 @@ export function createSessionsSpawnTool(
           error: resolveAcpUnavailableMessage(opts),
           ...roleContext,
         });
-      }
-      if (runtime === "acp" && lightContext) {
-        throw new Error("lightContext is only supported for runtime='subagent'.");
       }
       if (runtime === "acp" && context === "fork") {
         throw new Error('context="fork" is only supported for runtime="subagent".');
@@ -334,7 +332,7 @@ export function createSessionsSpawnTool(
             task,
             label: label || undefined,
             agentId: requestedAgentId,
-            resumeSessionId,
+            resumeSessionId: normalizedResumeSessionId,
             model: modelOverride,
             thinking: thinkingOverrideRaw,
             runTimeoutSeconds,
