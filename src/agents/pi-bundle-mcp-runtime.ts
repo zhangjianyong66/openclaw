@@ -33,6 +33,7 @@ type BundleMcpSession = {
   client: Client;
   transport: Transport;
   transportType: "stdio" | "sse" | "streamable-http";
+  requestTimeoutMs?: number;
   detachStderr?: () => void;
 };
 
@@ -117,6 +118,14 @@ function connectWithTimeout(
 
 function redactErrorUrls(error: unknown): string {
   return redactSensitiveUrlLikeString(String(error));
+}
+
+function isStreamableHttpSessionNotFoundError(error: unknown): boolean {
+  const message = String(error);
+  return (
+    /\bsession not found\b/i.test(message) &&
+    /\b(?:streamable http|post(?:ing)? to endpoint|http)\b/i.test(message)
+  );
 }
 
 async function listAllTools(client: Client) {
@@ -252,6 +261,7 @@ export function createSessionMcpRuntime(params: {
             client,
             transport: resolved.transport,
             transportType: resolved.transportType,
+            requestTimeoutMs: resolved.requestTimeoutMs,
             detachStderr: resolved.detachStderr,
           };
           sessions.set(serverName, session);
@@ -320,6 +330,37 @@ export function createSessionMcpRuntime(params: {
     }
   };
 
+  const rebuildCatalog = async () => {
+    catalog = null;
+    await Promise.allSettled(Array.from(sessions.values(), (session) => disposeSession(session)));
+    sessions.clear();
+    return getCatalog();
+  };
+
+  const callConnectedTool = async (
+    serverName: string,
+    toolName: string,
+    input: unknown,
+  ): Promise<CallToolResult> => {
+    await getCatalog();
+    const session = sessions.get(serverName);
+    if (!session) {
+      throw new Error(`bundle-mcp server "${serverName}" is not connected`);
+    }
+    const requestOptions =
+      typeof session.requestTimeoutMs === "number" && session.requestTimeoutMs > 0
+        ? { timeout: session.requestTimeoutMs }
+        : undefined;
+    return (await session.client.callTool(
+      {
+        name: toolName,
+        arguments: isMcpConfigRecord(input) ? input : {},
+      },
+      undefined,
+      requestOptions,
+    )) as CallToolResult;
+  };
+
   return {
     sessionId: params.sessionId,
     sessionKey: params.sessionKey,
@@ -350,15 +391,22 @@ export function createSessionMcpRuntime(params: {
     },
     async callTool(serverName, toolName, input) {
       failIfDisposed();
-      await getCatalog();
-      const session = sessions.get(serverName);
-      if (!session) {
-        throw new Error(`bundle-mcp server "${serverName}" is not connected`);
+      try {
+        return await callConnectedTool(serverName, toolName, input);
+      } catch (error) {
+        const session = sessions.get(serverName);
+        if (
+          session?.transportType !== "streamable-http" ||
+          !isStreamableHttpSessionNotFoundError(error)
+        ) {
+          throw error;
+        }
+        logWarn(
+          `bundle-mcp: server "${serverName}" streamable HTTP session expired; rebuilding session and retrying tool "${toolName}".`,
+        );
+        await rebuildCatalog();
+        return callConnectedTool(serverName, toolName, input);
       }
-      return (await session.client.callTool({
-        name: toolName,
-        arguments: isMcpConfigRecord(input) ? input : {},
-      })) as CallToolResult;
     },
     async dispose() {
       if (disposed) {

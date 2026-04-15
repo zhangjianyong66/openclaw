@@ -326,6 +326,34 @@ describe("session MCP runtime", () => {
     expect(resultB.content[0]).toMatchObject({ type: "text", text: "FROM-CONFIG-B" });
   });
 
+  it("passes configured MCP request timeout to tool calls", async () => {
+    const workspaceDir = await makeTempDir("openclaw-bundle-mcp-tools-");
+    const serverScriptPath = path.join(workspaceDir, "servers", "configured-probe.mjs");
+    await writeBundleProbeMcpServer(serverScriptPath, { toolDelayMs: 100 });
+
+    const runtime = await getOrCreateSessionMcpRuntime({
+      sessionId: "session-request-timeout",
+      sessionKey: "agent:test:session-request-timeout",
+      workspaceDir,
+      cfg: {
+        mcp: {
+          servers: {
+            configuredProbe: {
+              command: "node",
+              args: [serverScriptPath],
+              requestTimeoutMs: 10,
+            },
+          },
+        },
+      },
+    });
+    const tools = await materializeBundleMcpToolsForRun({ runtime });
+
+    await expect(
+      tools.tools[0].execute("call-configured-probe-timeout", {}, undefined, undefined),
+    ).rejects.toThrow(/Request timed out/i);
+  });
+
   it("disposes catalog startup in-flight without leaving cached runtimes", async () => {
     let notifyCatalogStarted!: () => void;
     const catalogStarted = new Promise<void>((resolve) => {
