@@ -16,6 +16,7 @@ export async function writeBundleProbeMcpServer(
   params: {
     startupCounterPath?: string;
     startupDelayMs?: number;
+    toolDelayMs?: number;
     pidPath?: string;
     exitMarkerPath?: string;
   } = {},
@@ -53,9 +54,13 @@ const startupDelayMs = ${JSON.stringify(params.startupDelayMs ?? 0)};
 if (startupDelayMs > 0) {
   await delay(startupDelayMs);
 }
+const toolDelayMs = ${JSON.stringify(params.toolDelayMs ?? 0)};
 
 const server = new McpServer({ name: "bundle-probe", version: "1.0.0" });
 server.tool("bundle_probe", "Bundle MCP probe", async () => {
+  if (toolDelayMs > 0) {
+    await delay(toolDelayMs);
+  }
   return {
     content: [{ type: "text", text: process.env.BUNDLE_PROBE_TEXT ?? "missing-probe-text" }],
   };
