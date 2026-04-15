@@ -7,6 +7,7 @@ describe("resolveMcpTransportConfig", () => {
       command: "node",
       args: ["./server.mjs"],
       connectionTimeoutMs: 12_345,
+      requestTimeoutMs: 180_000,
     });
 
     expect(resolved).toMatchObject({
@@ -15,6 +16,7 @@ describe("resolveMcpTransportConfig", () => {
       command: "node",
       args: ["./server.mjs"],
       connectionTimeoutMs: 12_345,
+      requestTimeoutMs: 180_000,
     });
   });
 
@@ -37,6 +39,7 @@ describe("resolveMcpTransportConfig", () => {
       },
       description: "https://mcp.example.com/sse",
       connectionTimeoutMs: 30_000,
+      requestTimeoutMs: undefined,
     });
   });
 
@@ -44,12 +47,26 @@ describe("resolveMcpTransportConfig", () => {
     const resolved = resolveMcpTransportConfig("probe", {
       url: "https://mcp.example.com/http",
       transport: "streamable-http",
+      requestTimeoutMs: 120_000,
     });
 
     expect(resolved).toMatchObject({
       kind: "http",
       transportType: "streamable-http",
       url: "https://mcp.example.com/http",
+      requestTimeoutMs: 120_000,
+    });
+  });
+
+  it("ignores invalid request timeout values", () => {
+    const resolved = resolveMcpTransportConfig("probe", {
+      command: "node",
+      requestTimeoutMs: -1,
+    });
+
+    expect(resolved).toMatchObject({
+      kind: "stdio",
+      requestTimeoutMs: undefined,
     });
   });
 });

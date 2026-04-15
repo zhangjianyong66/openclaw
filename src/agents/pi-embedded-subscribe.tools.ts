@@ -218,6 +218,12 @@ export function filterToolResultMediaUrls(
   if (isToolResultMediaTrusted(toolName, result)) {
     return mediaUrls;
   }
+  // Allow local temp qrcode files from xiaohongshu MCP to be sent as media
+  if (toolName?.includes("xiaohongshu") && toolName?.includes("qrcode")) {
+    return mediaUrls.filter(
+      (url) => url.startsWith("/tmp/openclaw/xhs-login-qrcode") || HTTP_URL_RE.test(url.trim()),
+    );
+  }
   return mediaUrls.filter((url) => HTTP_URL_RE.test(url.trim()));
 }
 
