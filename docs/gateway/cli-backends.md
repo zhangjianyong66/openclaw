@@ -161,6 +161,12 @@ model_instructions_file="..."`). Codex does not expose a Claude-style
 `--append-system-prompt` flag, so OpenClaw writes the assembled prompt to a
 temporary file for each fresh Codex CLI session.
 
+To keep Codex on its subscription/OAuth path when that is the active login,
+OpenClaw strips `OPENAI_API_KEY` and `OPENAI_API_KEYS` from the `codex-cli`
+child process environment before launch. This prevents a host-level API key
+from shadowing the CLI login state. Other CLI backends keep their normal env
+inheritance.
+
 The bundled Anthropic `claude-cli` backend receives the OpenClaw skills snapshot
 two ways: the compact OpenClaw skills catalog in the appended system prompt, and
 a temporary Claude Code plugin passed with `--plugin-dir`. The plugin contains

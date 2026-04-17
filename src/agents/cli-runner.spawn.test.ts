@@ -457,6 +457,50 @@ describe("runCliAgent spawn path", () => {
     }
   });
 
+  it("strips OpenAI API keys from Codex CLI child env", async () => {
+    const previousOpenAiKey = process.env.OPENAI_API_KEY;
+    const previousOpenAiKeys = process.env.OPENAI_API_KEYS;
+    process.env.OPENAI_API_KEY = "sk-openai-host";
+    process.env.OPENAI_API_KEYS = "sk-openai-host-2";
+
+    supervisorSpawnMock.mockImplementationOnce(async (...args: unknown[]) => {
+      const input = (args[0] ?? {}) as { env?: Record<string, string> };
+      expect(input.env?.OPENAI_API_KEY).toBeUndefined();
+      expect(input.env?.OPENAI_API_KEYS).toBeUndefined();
+      return createManagedRun({
+        reason: "exit",
+        exitCode: 0,
+        exitSignal: null,
+        durationMs: 50,
+        stdout: "ok",
+        stderr: "",
+        timedOut: false,
+        noOutputTimedOut: false,
+      });
+    });
+
+    try {
+      await executePreparedCliRun(
+        buildPreparedCliRunContext({
+          provider: "codex-cli",
+          model: "gpt-5.4",
+          runId: "run-codex-strip-openai-key",
+        }),
+      );
+    } finally {
+      if (previousOpenAiKey === undefined) {
+        delete process.env.OPENAI_API_KEY;
+      } else {
+        process.env.OPENAI_API_KEY = previousOpenAiKey;
+      }
+      if (previousOpenAiKeys === undefined) {
+        delete process.env.OPENAI_API_KEYS;
+      } else {
+        process.env.OPENAI_API_KEYS = previousOpenAiKeys;
+      }
+    }
+  });
+
   it("ignores legacy claudeSessionId on the compat wrapper", () => {
     const params = buildRunClaudeCliAgentParams({
       sessionId: "openclaw-session",

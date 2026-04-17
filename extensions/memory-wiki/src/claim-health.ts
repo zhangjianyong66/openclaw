@@ -76,14 +76,14 @@ function buildFreshnessFromTimestamp(params: { timestamp?: string; now?: Date })
   if (timestampMs === null || !params.timestamp) {
     return {
       level: "unknown",
-      reason: "missing updatedAt",
+      reason: "缺少 updatedAt",
     };
   }
   const daysSinceTouch = clampDaysSinceTouch(Math.floor((now.getTime() - timestampMs) / DAY_MS));
   if (daysSinceTouch >= WIKI_STALE_DAYS) {
     return {
       level: "stale",
-      reason: `last touched ${params.timestamp}`,
+      reason: `最后更新时间 ${params.timestamp}`,
       daysSinceTouch,
       lastTouchedAt: params.timestamp,
     };
@@ -91,14 +91,14 @@ function buildFreshnessFromTimestamp(params: { timestamp?: string; now?: Date })
   if (daysSinceTouch >= WIKI_AGING_DAYS) {
     return {
       level: "aging",
-      reason: `last touched ${params.timestamp}`,
+      reason: `最后更新时间 ${params.timestamp}`,
       daysSinceTouch,
       lastTouchedAt: params.timestamp,
     };
   }
   return {
     level: "fresh",
-    reason: `last touched ${params.timestamp}`,
+    reason: `最后更新时间 ${params.timestamp}`,
     daysSinceTouch,
     lastTouchedAt: params.timestamp,
   };

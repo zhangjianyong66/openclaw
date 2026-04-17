@@ -116,6 +116,8 @@ const CLI_ENV_AUTH_LOG_KEYS = [
   "OPENROUTER_API_KEY",
 ] as const;
 
+const CODEX_CLI_STRIPPED_ENV_KEYS = ["OPENAI_API_KEY", "OPENAI_API_KEYS"] as const;
+
 const CLI_BACKEND_PRESERVE_ENV = "OPENCLAW_LIVE_CLI_BACKEND_PRESERVE_ENV";
 
 function parseCliBackendPreserveEnv(raw: string | undefined): Set<string> {
@@ -351,6 +353,11 @@ export async function executePreparedCliRun(
             );
           }
           Object.assign(next, context.preparedBackend.env);
+          if (context.backendResolved.id === "codex-cli") {
+            for (const key of CODEX_CLI_STRIPPED_ENV_KEYS) {
+              delete next[key];
+            }
+          }
 
           // Never mark Claude CLI as host-managed. That marker routes runs into
           // Anthropic's separate host-managed usage tier instead of normal CLI

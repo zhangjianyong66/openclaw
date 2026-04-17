@@ -8,11 +8,11 @@ import type { ResolvedMemoryWikiConfig } from "./config.js";
 import { appendMemoryWikiLog } from "./log.js";
 
 export const WIKI_VAULT_DIRECTORIES = [
-  "entities",
-  "concepts",
-  "syntheses",
-  "sources",
-  "reports",
+  "实体",
+  "概念",
+  "综合",
+  "来源",
+  "报告",
   "_attachments",
   "_views",
   ".openclaw-wiki",
@@ -30,43 +30,43 @@ type InitializeMemoryWikiVaultResult = {
 function buildIndexMarkdown(): string {
   return withTrailingNewline(
     replaceManagedMarkdownBlock({
-      original: "# Wiki Index\n",
-      heading: "## Generated",
+      original: "# 知识库索引\n",
+      heading: "## 自动生成",
       startMarker: "<!-- openclaw:wiki:index:start -->",
       endMarker: "<!-- openclaw:wiki:index:end -->",
-      body: "- No compiled pages yet.",
+      body: "- 还没有编译后的页面。",
     }),
   );
 }
 
 function buildAgentsMarkdown(): string {
   return withTrailingNewline(`\
-# Memory Wiki Agent Guide
+# 知识库代理指南
 
-- Treat generated blocks as plugin-owned.
-- Preserve human notes outside managed markers.
-- Prefer source-backed claims over wiki-to-wiki citation loops.
-- Prefer structured \`claims\` with evidence over burying key beliefs only in prose.
-- Use \`.openclaw-wiki/cache/agent-digest.json\` and \`claims.jsonl\` for machine reads; markdown pages are the human view.
+- 生成块视为插件维护内容。
+- 人工笔记请保留在受管理标记之外。
+- 优先使用有来源支撑的声明，不要在页面之间来回循环引用。
+- 优先把关键判断写成带证据的结构化 \`claims\`，不要只埋在正文里。
+- 机器读取请使用 \`.openclaw-wiki/cache/agent-digest.json\` 和 \`claims.jsonl\`；Markdown 页面是给人看的。
 `);
 }
 
 function buildWikiOverviewMarkdown(config: ResolvedMemoryWikiConfig): string {
   return withTrailingNewline(`\
-# Memory Wiki
+# 知识库
 
-This vault is maintained by the OpenClaw memory-wiki plugin.
+这个仓库由 OpenClaw 的 memory-wiki 插件维护。
 
-- Vault mode: \`${config.vaultMode}\`
-- Render mode: \`${config.vault.renderMode}\`
-- Search corpus default: \`${config.search.corpus}\`
+- 仓库模式：\`${config.vaultMode}\`
+- 渲染模式：\`${config.vault.renderMode}\`
+- 默认搜索语料：\`${config.search.corpus}\`
 
-## Architecture
-- Raw sources remain the evidence layer.
-- Wiki pages are the human-readable synthesis layer.
-- \`.openclaw-wiki/cache/agent-digest.json\` is the agent-facing compiled digest.
+## 架构
+- 原始来源是证据层。
+- 知识库页面是面向人的综合层。
+- \`.openclaw-wiki/cache/agent-digest.json\` 是面向代理的编译摘要。
 
-## Notes
+## 说明
 <!-- openclaw:human:start -->
 <!-- openclaw:human:end -->
 `);
@@ -114,16 +114,16 @@ export async function initializeMemoryWikiVault(
     await fs.mkdir(fullPath, { recursive: true });
   }
 
-  await writeFileIfMissing(path.join(rootDir, "AGENTS.md"), buildAgentsMarkdown(), createdFiles);
+  await writeFileIfMissing(path.join(rootDir, "代理指南.md"), buildAgentsMarkdown(), createdFiles);
   await writeFileIfMissing(
-    path.join(rootDir, "WIKI.md"),
+    path.join(rootDir, "知识库.md"),
     buildWikiOverviewMarkdown(config),
     createdFiles,
   );
-  await writeFileIfMissing(path.join(rootDir, "index.md"), buildIndexMarkdown(), createdFiles);
+  await writeFileIfMissing(path.join(rootDir, "知识库索引.md"), buildIndexMarkdown(), createdFiles);
   await writeFileIfMissing(
-    path.join(rootDir, "inbox.md"),
-    withTrailingNewline("# Inbox\n\nDrop raw ideas, questions, and source links here.\n"),
+    path.join(rootDir, "收件箱.md"),
+    withTrailingNewline("# 收件箱\n\n把原始想法、问题和来源链接放在这里。\n"),
     createdFiles,
   );
   await writeFileIfMissing(

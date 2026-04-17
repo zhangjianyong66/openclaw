@@ -68,7 +68,7 @@ function collectBrokenLinkIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[
           category: "links",
           code: "broken-wikilink",
           path: page.relativePath,
-          message: `Broken wikilink target \`${linkTarget}\`.`,
+          message: `存在损坏的维基链接目标 \`${linkTarget}\`。`,
         });
       }
     }
@@ -88,7 +88,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "structure",
         code: "missing-id",
         path: page.relativePath,
-        message: "Missing `id` frontmatter.",
+        message: "缺少 `id` frontmatter。",
       });
     } else {
       const current = pagesById.get(page.id) ?? [];
@@ -102,7 +102,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "structure",
         code: "missing-page-type",
         path: page.relativePath,
-        message: "Missing `pageType` frontmatter.",
+        message: "缺少 `pageType` frontmatter。",
       });
     } else if (page.pageType !== toExpectedPageType(page)) {
       issues.push({
@@ -110,7 +110,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "structure",
         code: "page-type-mismatch",
         path: page.relativePath,
-        message: `Expected pageType \`${toExpectedPageType(page)}\`, found \`${page.pageType}\`.`,
+        message: `期望的 pageType 为 \`${toExpectedPageType(page)}\`，实际为 \`${page.pageType}\`。`,
       });
     }
 
@@ -120,7 +120,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "structure",
         code: "missing-title",
         path: page.relativePath,
-        message: "Missing page title.",
+        message: "缺少页面标题。",
       });
     }
 
@@ -130,7 +130,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "provenance",
         code: "missing-source-ids",
         path: page.relativePath,
-        message: "Non-source page is missing `sourceIds` provenance.",
+        message: "非来源页面缺少 `sourceIds` 溯源信息。",
       });
     }
 
@@ -144,7 +144,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         code: "missing-import-provenance",
         path: page.relativePath,
         message:
-          "Bridge-imported source page is missing `sourcePath`, `bridgeRelativePath`, or `bridgeWorkspaceDir` provenance.",
+          "通过桥接导入的来源页面缺少 `sourcePath`、`bridgeRelativePath` 或 `bridgeWorkspaceDir` 溯源信息。",
       });
     }
 
@@ -158,7 +158,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         code: "missing-import-provenance",
         path: page.relativePath,
         message:
-          "Unsafe-local source page is missing `sourcePath`, `unsafeLocalConfiguredPath`, or `unsafeLocalRelativePath` provenance.",
+          "不安全本地来源页面缺少 `sourcePath`、`unsafeLocalConfiguredPath` 或 `unsafeLocalRelativePath` 溯源信息。",
       });
     }
 
@@ -168,7 +168,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "contradictions",
         code: "contradiction-present",
         path: page.relativePath,
-        message: `Page lists ${page.contradictions.length} contradiction${page.contradictions.length === 1 ? "" : "s"} to resolve.`,
+        message: `页面列出了 ${page.contradictions.length} 个待处理矛盾项。`,
       });
     }
 
@@ -178,7 +178,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "open-questions",
         code: "open-question",
         path: page.relativePath,
-        message: `Page lists ${page.questions.length} open question${page.questions.length === 1 ? "" : "s"}.`,
+        message: `页面列出了 ${page.questions.length} 个待解问题。`,
       });
     }
 
@@ -188,7 +188,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "quality",
         code: "low-confidence",
         path: page.relativePath,
-        message: `Page confidence is low (${page.confidence.toFixed(2)}).`,
+        message: `页面置信度较低（${page.confidence.toFixed(2)}）。`,
       });
     }
 
@@ -199,7 +199,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "quality",
         code: "stale-page",
         path: page.relativePath,
-        message: `Page freshness needs review (${freshness.reason}).`,
+        message: `页面时效性需要复核（${freshness.reason}）。`,
       });
     }
   }
@@ -211,7 +211,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "provenance",
         code: "claim-missing-evidence",
         path: claim.pagePath,
-        message: `Claim ${claim.claimId ? `\`${claim.claimId}\`` : `\`${claim.text}\``} is missing structured evidence.`,
+        message: `声明 ${claim.claimId ? `\`${claim.claimId}\`` : `\`${claim.text}\``} 缺少结构化证据。`,
       });
     }
     if (typeof claim.confidence === "number" && claim.confidence < 0.5) {
@@ -220,7 +220,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "quality",
         code: "claim-low-confidence",
         path: claim.pagePath,
-        message: `Claim ${claim.claimId ? `\`${claim.claimId}\`` : `\`${claim.text}\``} has low confidence (${claim.confidence.toFixed(2)}).`,
+        message: `声明 ${claim.claimId ? `\`${claim.claimId}\`` : `\`${claim.text}\``} 的置信度较低（${claim.confidence.toFixed(2)}）。`,
       });
     }
     if (claim.freshness.level === "stale" || claim.freshness.level === "unknown") {
@@ -229,7 +229,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "quality",
         code: "stale-claim",
         path: claim.pagePath,
-        message: `Claim ${claim.claimId ? `\`${claim.claimId}\`` : `\`${claim.text}\``} freshness needs review (${claim.freshness.reason}).`,
+        message: `声明 ${claim.claimId ? `\`${claim.claimId}\`` : `\`${claim.text}\``} 的时效性需要复核（${claim.freshness.reason}）。`,
       });
     }
   }
@@ -241,7 +241,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
         category: "contradictions",
         code: "claim-conflict",
         path: entry.pagePath,
-        message: `Claim cluster \`${cluster.label}\` has competing variants across ${cluster.entries.length} pages.`,
+        message: `声明簇 \`${cluster.label}\` 在 ${cluster.entries.length} 个页面中存在竞争版本。`,
       });
     }
   }
@@ -254,7 +254,7 @@ function collectPageIssues(pages: WikiPageSummary[]): MemoryWikiLintIssue[] {
           category: "structure",
           code: "duplicate-id",
           path: match.relativePath,
-          message: `Duplicate page id \`${id}\`.`,
+          message: `页面 id \`${id}\` 重复。`,
         });
       }
     }
@@ -279,44 +279,44 @@ function buildIssuesByCategory(
 
 function buildLintReportBody(issues: MemoryWikiLintIssue[]): string {
   if (issues.length === 0) {
-    return "No issues found.";
+    return "未发现问题。";
   }
 
   const errors = issues.filter((issue) => issue.severity === "error");
   const warnings = issues.filter((issue) => issue.severity === "warning");
   const byCategory = buildIssuesByCategory(issues);
-  const lines = [`- Errors: ${errors.length}`, `- Warnings: ${warnings.length}`];
+  const lines = [`- 错误：${errors.length}`, `- 警告：${warnings.length}`];
 
   if (errors.length > 0) {
-    lines.push("", "### Errors");
+    lines.push("", "### 错误");
     for (const issue of errors) {
       lines.push(`- \`${issue.path}\`: ${issue.message}`);
     }
   }
 
   if (warnings.length > 0) {
-    lines.push("", "### Warnings");
+    lines.push("", "### 警告");
     for (const issue of warnings) {
       lines.push(`- \`${issue.path}\`: ${issue.message}`);
     }
   }
 
   if (byCategory.contradictions.length > 0) {
-    lines.push("", "### Contradictions");
+    lines.push("", "### 矛盾项");
     for (const issue of byCategory.contradictions) {
       lines.push(`- \`${issue.path}\`: ${issue.message}`);
     }
   }
 
   if (byCategory["open-questions"].length > 0) {
-    lines.push("", "### Open Questions");
+    lines.push("", "### 待解问题");
     for (const issue of byCategory["open-questions"]) {
       lines.push(`- \`${issue.path}\`: ${issue.message}`);
     }
   }
 
   if (byCategory.provenance.length > 0 || byCategory.quality.length > 0) {
-    lines.push("", "### Quality Follow-Up");
+    lines.push("", "### 质量跟进");
     for (const issue of [...byCategory.provenance, ...byCategory.quality]) {
       lines.push(`- \`${issue.path}\`: ${issue.message}`);
     }
@@ -332,15 +332,15 @@ async function writeLintReport(rootDir: string, issues: MemoryWikiLintIssue[]): 
       frontmatter: {
         pageType: "report",
         id: "report.lint",
-        title: "Lint Report",
+        title: "检查报告",
         status: "active",
       },
-      body: "# Lint Report\n",
+      body: "# 检查报告\n",
     }),
   );
   const updated = replaceManagedMarkdownBlock({
     original,
-    heading: "## Generated",
+    heading: "## 自动生成",
     startMarker: "<!-- openclaw:wiki:lint:start -->",
     endMarker: "<!-- openclaw:wiki:lint:end -->",
     body: buildLintReportBody(issues),
