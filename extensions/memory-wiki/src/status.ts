@@ -92,20 +92,20 @@ async function collectVaultCounts(vaultPath: string): Promise<{
     unsafeLocal: 0,
     other: 0,
   };
-  const dirs = ["entities", "concepts", "sources", "syntheses", "reports"] as const;
+  const dirs = ["实体", "概念", "来源", "综合", "报告"] as const;
   for (const dir of dirs) {
     const entries = await fs
       .readdir(path.join(vaultPath, dir), { withFileTypes: true })
       .catch(() => []);
     for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.endsWith(".md") || entry.name === "index.md") {
+      if (!entry.isFile() || !entry.name.endsWith(".md") || entry.name === "索引.md") {
         continue;
       }
       const kind = inferWikiPageKind(path.join(dir, entry.name));
       if (kind) {
         pageCounts[kind] += 1;
       }
-      if (dir === "sources") {
+      if (dir === "来源") {
         const absolutePath = path.join(vaultPath, dir, entry.name);
         const raw = await fs.readFile(absolutePath, "utf8").catch(() => null);
         if (!raw) {
@@ -307,7 +307,7 @@ export function renderMemoryWikiStatus(status: MemoryWikiStatus): string {
     `Obsidian CLI: ${status.obsidianCli.available ? "available" : "missing"}${status.obsidianCli.requested ? " (requested)" : ""}`,
     `Bridge: ${status.bridge.enabled ? "enabled" : "disabled"}${typeof status.bridgePublicArtifactCount === "number" ? ` (${status.bridgePublicArtifactCount} exported artifact${status.bridgePublicArtifactCount === 1 ? "" : "s"})` : ""}`,
     `Unsafe local: ${status.unsafeLocal.allowPrivateMemoryCoreAccess ? `enabled (${status.unsafeLocal.pathCount} paths)` : "disabled"}`,
-    `Pages: ${status.pageCounts.source} sources, ${status.pageCounts.entity} entities, ${status.pageCounts.concept} concepts, ${status.pageCounts.synthesis} syntheses, ${status.pageCounts.report} reports`,
+    `Pages: ${status.pageCounts.source} 来源, ${status.pageCounts.entity} 实体, ${status.pageCounts.concept} 概念, ${status.pageCounts.synthesis} 综合, ${status.pageCounts.report} 报告`,
     `Source provenance: ${status.sourceCounts.native} native, ${status.sourceCounts.bridge} bridge, ${status.sourceCounts.bridgeEvents} bridge-events, ${status.sourceCounts.unsafeLocal} unsafe-local, ${status.sourceCounts.other} other`,
   ];
 
