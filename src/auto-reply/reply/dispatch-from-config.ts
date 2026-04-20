@@ -928,12 +928,8 @@ export async function dispatchReplyFromConfig(
       return attachSourceReplyDeliveryMode({ queuedFinal, counts });
     }
 
-    const isSlackNonDirectSurface =
-      (ctx.Surface === "slack" || ctx.Provider === "slack") && ctx.ChatType !== "direct";
-    const shouldSendVerboseProgressMessages =
-      !isSlackNonDirectSurface && (ctx.ChatType !== "group" || ctx.IsForum === true);
-    const shouldSendToolSummaries = shouldSendVerboseProgressMessages;
-    const shouldSendToolStartStatuses = shouldSendVerboseProgressMessages;
+    const shouldSendToolSummaries = true;
+    const shouldSendToolStartStatuses = true;
     const sendFinalPayload = async (
       payload: ReplyPayload,
     ): Promise<{ queuedFinal: boolean; routedFinalCount: number }> => {
