@@ -6,11 +6,13 @@ description: Maintain the OpenClaw memory wiki vault with deterministic pages, m
 Use this skill when working inside a memory-wiki vault.
 
 - Prefer `wiki_status` first when you need to understand the vault mode, path, or Obsidian CLI availability.
+- Treat `corpus=all` as the default search scope unless noise is proven too high.
 - Prefer `memory_search` with `corpus=all` when the shared memory tools are available and you want one recall pass across durable memory plus the compiled wiki.
 - Use `wiki_search` to discover candidate pages when you want wiki-specific ranking/provenance, then `wiki_get` to inspect the exact page before editing or citing it.
+- Apply edits in this order: `wiki_search` → `wiki_get` → `wiki_apply`.
 - Use `wiki_apply` for narrow synthesis filing and metadata updates when a tool-level mutation is enough.
 - Run `wiki_lint` after meaningful wiki updates so contradictions, provenance gaps, and open questions get surfaced before you trust the vault.
-- Use `openclaw wiki ingest`, `openclaw wiki compile`, and `openclaw wiki lint` as the default maintenance loop.
+- Use `openclaw wiki ingest`, then `openclaw wiki compile`, then `openclaw wiki lint` as the default maintenance loop.
 - In `bridge` mode, run `openclaw wiki bridge import` before relying on search results if you need the latest public memory artifacts pulled in.
 - In `unsafe-local` mode, use `openclaw wiki unsafe-local import` only when the user explicitly opted into private local path access.
 - Keep generated sections inside managed markers. Do not overwrite human note blocks.

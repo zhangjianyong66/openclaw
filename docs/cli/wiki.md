@@ -229,10 +229,14 @@ These require the official `obsidian` CLI on `PATH` when
 ## Practical usage guidance
 
 - Use `wiki search` + `wiki get` when provenance and page identity matter.
+- Use `wiki search` -> `wiki get` -> `wiki apply` for safe retrieval-then-mutation flow.
 - Use `wiki apply` instead of hand-editing managed generated sections.
 - Use `wiki lint` before trusting contradictory or low-confidence content.
+- Start daily work with `openclaw wiki status`.
 - Use `wiki compile` after bulk imports or source changes when you want fresh
   dashboards and compiled digests immediately.
+- After bulk updates, run `openclaw wiki ingest` -> `openclaw wiki compile` ->
+  `openclaw wiki lint`.
 - Use `wiki bridge import` when bridge mode depends on newly exported memory
   artifacts.
 

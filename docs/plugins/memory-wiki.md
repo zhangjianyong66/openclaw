@@ -384,7 +384,7 @@ Put config under `plugins.entries.memory-wiki.config`:
           },
           obsidian: {
             enabled: true,
-            useOfficialCli: true,
+            useOfficialCli: true, // auto-defaults to true only when `obsidian` CLI is available
             vaultName: "OpenClaw Wiki",
             openAfterWrites: false,
           },
@@ -403,7 +403,7 @@ Put config under `plugins.entries.memory-wiki.config`:
           },
           search: {
             backend: "shared",
-            corpus: "wiki",
+            corpus: "all",
           },
           context: {
             includeCompiledDigestPrompt: false,
@@ -516,10 +516,11 @@ This is optional. The wiki still works in native mode without Obsidian.
 1. Keep your active memory plugin for recall/promotion/dreaming.
 2. Enable `memory-wiki`.
 3. Start with `isolated` mode unless you explicitly want bridge mode.
-4. Use `wiki_search` / `wiki_get` when provenance matters.
-5. Use `wiki_apply` for narrow syntheses or metadata updates.
-6. Run `wiki_lint` after meaningful changes.
-7. Turn on dashboards if you want stale/contradiction visibility.
+4. Run `openclaw wiki status` at session start.
+5. Use `wiki_search` -> `wiki_get` -> `wiki_apply` when provenance matters.
+6. After bulk updates, run `openclaw wiki ingest` -> `openclaw wiki compile` -> `openclaw wiki lint`.
+7. Keep `search.corpus=all` by default for recall coverage; if top-20 results show more than 10 low-relevance hits over the observation window, fallback default `search.corpus` to `wiki`.
+8. Turn on dashboards if you want stale/contradiction visibility.
 
 ## Related docs
 

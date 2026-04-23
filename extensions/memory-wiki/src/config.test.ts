@@ -22,14 +22,29 @@ function compileManifestConfigSchema() {
 
 describe("resolveMemoryWikiConfig", () => {
   it("returns isolated defaults", () => {
-    const config = resolveMemoryWikiConfig(undefined, { homedir: "/Users/tester" });
+    const config = resolveMemoryWikiConfig(undefined, {
+      homedir: "/Users/tester",
+      hasObsidianCli: false,
+    });
 
     expect(config.vaultMode).toBe(DEFAULT_WIKI_VAULT_MODE);
     expect(config.vault.renderMode).toBe(DEFAULT_WIKI_RENDER_MODE);
     expect(config.vault.path).toBe(resolveDefaultMemoryWikiVaultPath("/Users/tester"));
+    expect(config.obsidian.enabled).toBe(true);
+    expect(config.obsidian.useOfficialCli).toBe(false);
     expect(config.search.backend).toBe(DEFAULT_WIKI_SEARCH_BACKEND);
     expect(config.search.corpus).toBe(DEFAULT_WIKI_SEARCH_CORPUS);
     expect(config.context.includeCompiledDigestPrompt).toBe(false);
+  });
+
+  it("enables official cli by default when obsidian is available on PATH", () => {
+    const config = resolveMemoryWikiConfig(undefined, {
+      homedir: "/Users/tester",
+      hasObsidianCli: true,
+    });
+
+    expect(config.obsidian.enabled).toBe(true);
+    expect(config.obsidian.useOfficialCli).toBe(true);
   });
 
   it("expands ~/ paths and preserves explicit modes", () => {

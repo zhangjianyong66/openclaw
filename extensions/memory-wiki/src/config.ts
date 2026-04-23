@@ -1,3 +1,5 @@
+import { constants as fsConstants } from "node:fs";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { mapPluginConfigIssues } from "openclaw/plugin-sdk/extension-shared";
@@ -100,9 +102,9 @@ export type ResolvedMemoryWikiConfig = {
 };
 
 export const DEFAULT_WIKI_VAULT_MODE: WikiVaultMode = "isolated";
-export const DEFAULT_WIKI_RENDER_MODE: WikiRenderMode = "native";
+export const DEFAULT_WIKI_RENDER_MODE: WikiRenderMode = "obsidian";
 export const DEFAULT_WIKI_SEARCH_BACKEND: WikiSearchBackend = "shared";
-export const DEFAULT_WIKI_SEARCH_CORPUS: WikiSearchCorpus = "wiki";
+export const DEFAULT_WIKI_SEARCH_CORPUS: WikiSearchCorpus = "all";
 
 const MemoryWikiConfigSource = z.strictObject({
   vaultMode: z.enum(WIKI_VAULT_MODES).optional(),
@@ -197,13 +199,42 @@ export function resolveDefaultMemoryWikiVaultPath(homedir = os.homedir()): strin
   return path.join(homedir, ".openclaw", "wiki", "main");
 }
 
+function isExecutableFileSync(inputPath: string): boolean {
+  try {
+    fs.accessSync(inputPath, process.platform === "win32" ? fsConstants.F_OK : fsConstants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function hasObsidianCliOnPath(pathValue = process.env.PATH ?? ""): boolean {
+  const pathEntries = pathValue.split(path.delimiter).filter(Boolean);
+  const windowsExts =
+    process.platform === "win32"
+      ? (process.env.PATHEXT?.split(";").filter(Boolean) ?? [".EXE", ".CMD", ".BAT"])
+      : [""];
+
+  for (const dir of pathEntries) {
+    for (const extension of windowsExts) {
+      const candidate = path.join(dir, extension ? `obsidian${extension}` : "obsidian");
+      if (isExecutableFileSync(candidate)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 export function resolveMemoryWikiConfig(
   config: MemoryWikiPluginConfig | undefined,
-  options?: { homedir?: string },
+  options?: { homedir?: string; hasObsidianCli?: boolean },
 ): ResolvedMemoryWikiConfig {
   const homedir = options?.homedir ?? os.homedir();
   const parsed = config ? MemoryWikiConfigSource.safeParse(config) : null;
   const safeConfig = parsed?.success ? parsed.data : (config ?? {});
+  const obsidianEnabled = safeConfig.obsidian?.enabled ?? true;
+  const hasObsidianCli = options?.hasObsidianCli ?? hasObsidianCliOnPath();
 
   return {
     vaultMode: safeConfig.vaultMode ?? DEFAULT_WIKI_VAULT_MODE,
@@ -215,8 +246,8 @@ export function resolveMemoryWikiConfig(
       renderMode: safeConfig.vault?.renderMode ?? DEFAULT_WIKI_RENDER_MODE,
     },
     obsidian: {
-      enabled: safeConfig.obsidian?.enabled ?? false,
-      useOfficialCli: safeConfig.obsidian?.useOfficialCli ?? false,
+      enabled: obsidianEnabled,
+      useOfficialCli: safeConfig.obsidian?.useOfficialCli ?? (obsidianEnabled && hasObsidianCli),
       ...(safeConfig.obsidian?.vaultName ? { vaultName: safeConfig.obsidian.vaultName } : {}),
       openAfterWrites: safeConfig.obsidian?.openAfterWrites ?? false,
     },
