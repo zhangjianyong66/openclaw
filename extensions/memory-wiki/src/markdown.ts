@@ -257,19 +257,19 @@ export function renderMarkdownFence(content: string, infoString = "text"): strin
 
 export function inferWikiPageKind(relativePath: string): WikiPageKind | null {
   const normalized = relativePath.split(path.sep).join("/");
-  if (normalized.startsWith("entities/")) {
+  if (normalized.startsWith("实体/")) {
     return "entity";
   }
-  if (normalized.startsWith("concepts/")) {
+  if (normalized.startsWith("概念/")) {
     return "concept";
   }
-  if (normalized.startsWith("sources/")) {
+  if (normalized.startsWith("来源/")) {
     return "source";
   }
-  if (normalized.startsWith("syntheses/")) {
+  if (normalized.startsWith("综合/")) {
     return "synthesis";
   }
-  if (normalized.startsWith("reports/")) {
+  if (normalized.startsWith("报告/")) {
     return "report";
   }
   return null;

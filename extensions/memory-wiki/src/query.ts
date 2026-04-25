@@ -15,7 +15,7 @@ import {
 } from "./markdown.js";
 import { initializeMemoryWikiVault } from "./vault.js";
 
-const QUERY_DIRS = ["entities", "concepts", "sources", "syntheses", "reports"] as const;
+const QUERY_DIRS = ["实体", "概念", "来源", "综合", "报告"] as const;
 const AGENT_DIGEST_PATH = ".openclaw-wiki/cache/agent-digest.json";
 const CLAIMS_DIGEST_PATH = ".openclaw-wiki/cache/claims.jsonl";
 
@@ -102,7 +102,7 @@ async function listWikiMarkdownFiles(rootDir: string): Promise<string[]> {
         const entries = await fs.readdir(dirPath, { withFileTypes: true }).catch(() => []);
         return entries
           .filter(
-            (entry) => entry.isFile() && entry.name.endsWith(".md") && entry.name !== "index.md",
+            (entry) => entry.isFile() && entry.name.endsWith(".md") && entry.name !== "索引.md",
           )
           .map((entry) => path.join(relativeDir, entry.name));
       }),

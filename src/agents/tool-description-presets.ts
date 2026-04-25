@@ -6,7 +6,8 @@ export const SESSIONS_LIST_TOOL_DISPLAY_SUMMARY =
 export const SESSIONS_HISTORY_TOOL_DISPLAY_SUMMARY =
   "Read sanitized message history for a visible session.";
 export const SESSIONS_SEND_TOOL_DISPLAY_SUMMARY = "Send a message to another visible session.";
-export const SESSIONS_SPAWN_TOOL_DISPLAY_SUMMARY = "Spawn sub-agent or ACP sessions.";
+export const SESSIONS_SPAWN_TOOL_DISPLAY_SUMMARY =
+  "Spawn internal sub-agent or ACP harness sessions.";
 export const SESSION_STATUS_TOOL_DISPLAY_SUMMARY = "Show session status, usage, and model state.";
 export const UPDATE_PLAN_TOOL_DISPLAY_SUMMARY = "Track a short structured work plan.";
 
@@ -37,6 +38,10 @@ export function describeSessionsSpawnTool(): string {
     '`mode="run"` is one-shot and `mode="session"` is persistent or thread-bound.',
     "Subagents inherit the parent workspace directory automatically.",
     'For native subagents only, set `context="fork"` when the child needs the current transcript context; otherwise omit it or use `context="isolated"`.',
+    'For internal OpenClaw agents like `main`, `coder`, `squirrel`, and `pencil`, use `runtime: "subagent"`.',
+    '`streamTo` is only for `runtime: "acp"`; `lightContext` is only for `runtime: "subagent"`.',
+    'Internal subagent minimum template: `{"agentId":"coder","runtime":"subagent","mode":"run","task":"..."}`.',
+    'ACP minimum template: `{"agentId":"codex","runtime":"acp","mode":"run","task":"...","streamTo":"parent"}`.',
     "Use this when the work should happen in a fresh child session instead of the current one.",
   ].join(" ");
 }

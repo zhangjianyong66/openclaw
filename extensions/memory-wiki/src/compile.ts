@@ -36,12 +36,14 @@ import {
 import { initializeMemoryWikiVault } from "./vault.js";
 
 const COMPILE_PAGE_GROUPS: Array<{ kind: WikiPageKind; dir: string; heading: string }> = [
-  { kind: "source", dir: "sources", heading: "Sources" },
-  { kind: "entity", dir: "entities", heading: "Entities" },
-  { kind: "concept", dir: "concepts", heading: "Concepts" },
-  { kind: "synthesis", dir: "syntheses", heading: "Syntheses" },
-  { kind: "report", dir: "reports", heading: "Reports" },
+  { kind: "source", dir: "来源", heading: "来源" },
+  { kind: "entity", dir: "实体", heading: "实体" },
+  { kind: "concept", dir: "概念", heading: "概念" },
+  { kind: "synthesis", dir: "综合", heading: "综合" },
+  { kind: "report", dir: "报告", heading: "报告" },
 ];
+const ROOT_INDEX_FILENAME = "知识库索引.md";
+const DIRECTORY_INDEX_FILENAME = "索引.md";
 const AGENT_DIGEST_PATH = ".openclaw-wiki/cache/agent-digest.json";
 const CLAIMS_DIGEST_PATH = ".openclaw-wiki/cache/claims.jsonl";
 
@@ -59,15 +61,15 @@ type DashboardPageDefinition = {
 const DASHBOARD_PAGES: DashboardPageDefinition[] = [
   {
     id: "report.open-questions",
-    title: "Open Questions",
-    relativePath: "reports/open-questions.md",
+    title: "待解问题",
+    relativePath: "报告/待解问题.md",
     buildBody: ({ config, pages }) => {
       const matches = pages.filter((page) => page.questions.length > 0);
       if (matches.length === 0) {
-        return "- No open questions right now.";
+        return "- 目前没有待解问题。";
       }
       return [
-        `- Pages with open questions: ${matches.length}`,
+        `- 含有待解问题的页面：${matches.length}`,
         "",
         ...matches.map(
           (page) =>
@@ -82,26 +84,26 @@ const DASHBOARD_PAGES: DashboardPageDefinition[] = [
   },
   {
     id: "report.contradictions",
-    title: "Contradictions",
-    relativePath: "reports/contradictions.md",
+    title: "矛盾项",
+    relativePath: "报告/矛盾项.md",
     buildBody: ({ config, pages, now }) => {
       const pageClusters = buildPageContradictionClusters(pages);
       const claimClusters = buildClaimContradictionClusters({ pages, now });
       if (pageClusters.length === 0 && claimClusters.length === 0) {
-        return "- No contradictions flagged right now.";
+        return "- 目前没有标记出的矛盾项。";
       }
       const lines = [
-        `- Contradiction note clusters: ${pageClusters.length}`,
-        `- Competing claim clusters: ${claimClusters.length}`,
+        `- 矛盾备注簇：${pageClusters.length}`,
+        `- 竞争声明簇：${claimClusters.length}`,
       ];
       if (pageClusters.length > 0) {
-        lines.push("", "### Page Notes");
+        lines.push("", "### 页面备注");
         for (const cluster of pageClusters) {
           lines.push(formatPageContradictionClusterLine(config, cluster));
         }
       }
       if (claimClusters.length > 0) {
-        lines.push("", "### Claim Clusters");
+        lines.push("", "### 声明簇");
         for (const cluster of claimClusters) {
           lines.push(formatClaimContradictionClusterLine(config, cluster));
         }
@@ -111,8 +113,8 @@ const DASHBOARD_PAGES: DashboardPageDefinition[] = [
   },
   {
     id: "report.low-confidence",
-    title: "Low Confidence",
-    relativePath: "reports/low-confidence.md",
+    title: "低置信度",
+    relativePath: "报告/低置信度.md",
     buildBody: ({ config, pages, now }) => {
       const pageMatches = pages
         .filter((page) => typeof page.confidence === "number" && page.confidence < 0.5)
@@ -121,22 +123,22 @@ const DASHBOARD_PAGES: DashboardPageDefinition[] = [
         .filter((claim) => typeof claim.confidence === "number" && claim.confidence < 0.5)
         .toSorted((left, right) => (left.confidence ?? 1) - (right.confidence ?? 1));
       if (pageMatches.length === 0 && claimMatches.length === 0) {
-        return "- No low-confidence pages or claims right now.";
+        return "- 目前没有低置信度的页面或声明。";
       }
       const lines = [
-        `- Low-confidence pages: ${pageMatches.length}`,
-        `- Low-confidence claims: ${claimMatches.length}`,
+        `- 低置信度页面：${pageMatches.length}`,
+        `- 低置信度声明：${claimMatches.length}`,
       ];
       if (pageMatches.length > 0) {
-        lines.push("", "### Pages");
+        lines.push("", "### 页面");
         for (const page of pageMatches) {
           lines.push(
-            `- ${formatPageLink(config, page)}: confidence ${(page.confidence ?? 0).toFixed(2)}`,
+            `- ${formatPageLink(config, page)}：置信度 ${(page.confidence ?? 0).toFixed(2)}`,
           );
         }
       }
       if (claimMatches.length > 0) {
-        lines.push("", "### Claims");
+        lines.push("", "### 声明");
         for (const claim of claimMatches) {
           lines.push(`- ${formatClaimHealthLine(config, claim)}`);
         }
@@ -146,8 +148,8 @@ const DASHBOARD_PAGES: DashboardPageDefinition[] = [
   },
   {
     id: "report.claim-health",
-    title: "Claim Health",
-    relativePath: "reports/claim-health.md",
+    title: "声明健康度",
+    relativePath: "报告/声明健康度.md",
     buildBody: ({ config, pages, now }) => {
       const claimHealth = collectWikiClaimHealth(pages, now);
       const missingEvidence = claimHealth.filter((claim) => claim.missingEvidence);
@@ -160,27 +162,27 @@ const DASHBOARD_PAGES: DashboardPageDefinition[] = [
         contestedClaims.length === 0 &&
         staleClaims.length === 0
       ) {
-        return "- No claim health issues right now.";
+        return "- 目前没有声明健康问题。";
       }
       const lines = [
-        `- Claims missing evidence: ${missingEvidence.length}`,
-        `- Contested claims: ${contestedClaims.length}`,
-        `- Stale or unknown claims: ${staleClaims.length}`,
+        `- 缺少证据的声明：${missingEvidence.length}`,
+        `- 存在争议的声明：${contestedClaims.length}`,
+        `- 陈旧或未知状态的声明：${staleClaims.length}`,
       ];
       if (missingEvidence.length > 0) {
-        lines.push("", "### Missing Evidence");
+        lines.push("", "### 缺少证据");
         for (const claim of missingEvidence) {
           lines.push(`- ${formatClaimHealthLine(config, claim)}`);
         }
       }
       if (contestedClaims.length > 0) {
-        lines.push("", "### Contested Claims");
+        lines.push("", "### 存在争议");
         for (const claim of contestedClaims) {
           lines.push(`- ${formatClaimHealthLine(config, claim)}`);
         }
       }
       if (staleClaims.length > 0) {
-        lines.push("", "### Stale Claims");
+        lines.push("", "### 陈旧声明");
         for (const claim of staleClaims) {
           lines.push(`- ${formatClaimHealthLine(config, claim)}`);
         }
@@ -190,8 +192,8 @@ const DASHBOARD_PAGES: DashboardPageDefinition[] = [
   },
   {
     id: "report.stale-pages",
-    title: "Stale Pages",
-    relativePath: "reports/stale-pages.md",
+    title: "陈旧页面",
+    relativePath: "报告/陈旧页面.md",
     buildBody: ({ config, pages, now }) => {
       const matches = pages
         .filter((page) => page.kind !== "report")
@@ -204,10 +206,10 @@ const DASHBOARD_PAGES: DashboardPageDefinition[] = [
         })
         .toSorted((left, right) => left.page.title.localeCompare(right.page.title));
       if (matches.length === 0) {
-        return `- No aging or stale pages older than ${WIKI_AGING_DAYS} days.`;
+        return `- 没有超过 ${WIKI_AGING_DAYS} 天的陈旧或老化页面。`;
       }
       return [
-        `- Stale pages: ${matches.length}`,
+        `- 陈旧页面：${matches.length}`,
         "",
         ...matches.map(
           ({ page, freshness }) =>
@@ -238,7 +240,7 @@ async function collectMarkdownFiles(rootDir: string, relativeDir: string): Promi
   return entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
     .map((entry) => path.join(relativeDir, entry.name))
-    .filter((relativePath) => path.basename(relativePath) !== "index.md")
+    .filter((relativePath) => path.basename(relativePath) !== DIRECTORY_INDEX_FILENAME)
     .toSorted((left, right) => left.localeCompare(right));
 }
 
@@ -281,15 +283,32 @@ function formatPageLink(config: ResolvedMemoryWikiConfig, page: WikiPageSummary)
 function formatFreshnessLabel(freshness: WikiFreshness): string {
   switch (freshness.level) {
     case "fresh":
-      return `fresh (${freshness.lastTouchedAt ?? "recent"})`;
+      return `新鲜（${freshness.lastTouchedAt ?? "最近"}）`;
     case "aging":
-      return `aging (${freshness.lastTouchedAt ?? "unknown"})`;
+      return `趋于陈旧（${freshness.lastTouchedAt ?? "未知"}）`;
     case "stale":
-      return `stale (${freshness.lastTouchedAt ?? "unknown"})`;
+      return `陈旧（${freshness.lastTouchedAt ?? "未知"}）`;
     case "unknown":
-      return freshness.reason;
+      return "未知";
   }
   throw new Error("Unsupported wiki freshness level");
+}
+
+function formatClaimStatusLabel(status: string): string {
+  switch (normalizeClaimStatus(status)) {
+    case "supported":
+      return "已支持";
+    case "contested":
+      return "存在争议";
+    case "contradicted":
+      return "被反驳";
+    case "refuted":
+      return "已驳斥";
+    case "superseded":
+      return "已被替代";
+    default:
+      return status;
+  }
 }
 
 function formatClaimIdentity(claim: WikiClaimHealth): string {
@@ -302,9 +321,9 @@ function isClaimHealthContested(claim: WikiClaimHealth): boolean {
 
 function formatClaimHealthLine(config: ResolvedMemoryWikiConfig, claim: WikiClaimHealth): string {
   const details = [
-    `status ${claim.status}`,
-    typeof claim.confidence === "number" ? `confidence ${claim.confidence.toFixed(2)}` : null,
-    claim.missingEvidence ? "missing evidence" : `${claim.evidenceCount} evidence`,
+    `状态 ${formatClaimStatusLabel(claim.status)}`,
+    typeof claim.confidence === "number" ? `置信度 ${claim.confidence.toFixed(2)}` : null,
+    claim.missingEvidence ? "缺少证据" : `${claim.evidenceCount} 条证据`,
     formatFreshnessLabel(claim.freshness),
   ].filter(Boolean);
   return `${formatWikiLink({
@@ -338,7 +357,7 @@ function formatClaimContradictionClusterLine(
         renderMode: config.vault.renderMode,
         relativePath: entry.pagePath,
         title: entry.pageTitle,
-      })} -> ${formatClaimIdentity(entry)} (${entry.status}, ${formatFreshnessLabel(entry.freshness)})`,
+      })} → ${formatClaimIdentity(entry)} (${formatClaimStatusLabel(entry.status)}, ${formatFreshnessLabel(entry.freshness)})`,
   );
   return `- \`${cluster.label}\`: ${entries.join(" | ")}`;
 }
@@ -446,25 +465,19 @@ function buildRelatedBlockBody(params: {
 
   const sections: string[] = [];
   if (sourcePages.length > 0) {
-    sections.push(
-      "### Sources",
-      renderWikiPageLinks({ config: params.config, pages: sourcePages }),
-    );
+    sections.push("### 来源", renderWikiPageLinks({ config: params.config, pages: sourcePages }));
   }
   if (backlinks.length > 0) {
-    sections.push(
-      "### Referenced By",
-      renderWikiPageLinks({ config: params.config, pages: backlinks }),
-    );
+    sections.push("### 被引用于", renderWikiPageLinks({ config: params.config, pages: backlinks }));
   }
   if (relatedPages.length > 0) {
     sections.push(
-      "### Related Pages",
+      "### 相关页面",
       renderWikiPageLinks({ config: params.config, pages: relatedPages }),
     );
   }
   if (sections.length === 0) {
-    return "- No related pages yet.";
+    return "- 目前没有相关页面。";
   }
   return sections.join("\n\n");
 }
@@ -485,7 +498,7 @@ async function refreshPageRelatedBlocks(params: {
     const updated = withTrailingNewline(
       replaceManagedMarkdownBlock({
         original,
-        heading: "## Related",
+        heading: "## 相关内容",
         startMarker: WIKI_RELATED_START_MARKER,
         endMarker: WIKI_RELATED_END_MARKER,
         body: buildRelatedBlockBody({
@@ -534,7 +547,7 @@ async function writeManagedMarkdownFile(params: {
   const original = await fs.readFile(params.filePath, "utf8").catch(() => `# ${params.title}\n`);
   const updated = replaceManagedMarkdownBlock({
     original,
-    heading: "## Generated",
+    heading: "## 自动生成",
     startMarker: params.startMarker,
     endMarker: params.endMarker,
     body: params.body,
@@ -571,7 +584,7 @@ async function writeDashboardPage(params: {
     parsed.body.trim().length > 0 ? parsed.body : `# ${params.definition.title}\n`;
   const updatedBody = replaceManagedMarkdownBlock({
     original: originalBody,
-    heading: "## Generated",
+    heading: "## 自动生成",
     startMarker: `<!-- openclaw:wiki:${path.basename(params.definition.relativePath, ".md")}:start -->`,
     endMarker: `<!-- openclaw:wiki:${path.basename(params.definition.relativePath, ".md")}:end -->`,
     body: params.definition.buildBody({
@@ -656,14 +669,14 @@ function buildRootIndexBody(params: {
 }): string {
   const claimCount = params.pages.reduce((total, page) => total + page.claims.length, 0);
   const lines = [
-    `- Render mode: \`${params.config.vault.renderMode}\``,
-    `- Total pages: ${params.pages.length}`,
-    `- Claims: ${claimCount}`,
-    `- Sources: ${params.counts.source}`,
-    `- Entities: ${params.counts.entity}`,
-    `- Concepts: ${params.counts.concept}`,
-    `- Syntheses: ${params.counts.synthesis}`,
-    `- Reports: ${params.counts.report}`,
+    `- 渲染模式：\`${params.config.vault.renderMode}\``,
+    `- 总页数：${params.pages.length}`,
+    `- 声明数：${claimCount}`,
+    `- 来源：${params.counts.source}`,
+    `- 实体：${params.counts.entity}`,
+    `- 概念：${params.counts.concept}`,
+    `- 综合：${params.counts.synthesis}`,
+    `- 报告：${params.counts.report}`,
   ];
 
   for (const group of COMPILE_PAGE_GROUPS) {
@@ -672,7 +685,7 @@ function buildRootIndexBody(params: {
       renderSectionList({
         config: params.config,
         pages: params.pages.filter((page) => page.kind === group.kind),
-        emptyText: `No ${normalizeLowercaseStringOrEmpty(group.heading)} yet.`,
+        emptyText: `暂无${group.heading}。`,
       }),
     );
   }
@@ -688,7 +701,7 @@ function buildDirectoryIndexBody(params: {
   return renderSectionList({
     config: params.config,
     pages: params.pages.filter((page) => page.kind === params.group.kind),
-    emptyText: `No ${normalizeLowercaseStringOrEmpty(params.group.heading)} yet.`,
+    emptyText: `暂无${params.group.heading}。`,
   });
 }
 
@@ -972,11 +985,11 @@ export async function compileMemoryWikiVault(
   });
   updatedFiles.push(...digestUpdatedFiles);
 
-  const rootIndexPath = path.join(rootDir, "index.md");
+  const rootIndexPath = path.join(rootDir, ROOT_INDEX_FILENAME);
   if (
     await writeManagedMarkdownFile({
       filePath: rootIndexPath,
-      title: "Wiki Index",
+      title: "知识库索引",
       startMarker: "<!-- openclaw:wiki:index:start -->",
       endMarker: "<!-- openclaw:wiki:index:end -->",
       body: buildRootIndexBody({ config, pages, counts }),
@@ -986,7 +999,7 @@ export async function compileMemoryWikiVault(
   }
 
   for (const group of COMPILE_PAGE_GROUPS) {
-    const filePath = path.join(rootDir, group.dir, "index.md");
+    const filePath = path.join(rootDir, group.dir, DIRECTORY_INDEX_FILENAME);
     if (
       await writeManagedMarkdownFile({
         filePath,
@@ -1022,8 +1035,8 @@ export async function compileMemoryWikiVault(
 
 async function hasMissingWikiIndexes(rootDir: string): Promise<boolean> {
   const required = [
-    path.join(rootDir, "index.md"),
-    ...COMPILE_PAGE_GROUPS.map((group) => path.join(rootDir, group.dir, "index.md")),
+    path.join(rootDir, ROOT_INDEX_FILENAME),
+    ...COMPILE_PAGE_GROUPS.map((group) => path.join(rootDir, group.dir, DIRECTORY_INDEX_FILENAME)),
   ];
   for (const filePath of required) {
     const exists = await fs

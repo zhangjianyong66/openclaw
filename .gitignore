@@ -89,6 +89,7 @@ apps/ios/*.mobileprovision
 docs/.local/
 docs/internal/
 tmp/
+.metadata_never_index
 IDENTITY.md
 USER.md
 .tgz

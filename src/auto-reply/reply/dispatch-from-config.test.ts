@@ -547,6 +547,15 @@ function firstToolResultPayload(dispatcher: ReplyDispatcher): ReplyPayload | und
     | undefined;
 }
 
+function nthToolResultPayload(
+  dispatcher: ReplyDispatcher,
+  index: number,
+): ReplyPayload | undefined {
+  return (dispatcher.sendToolResult as ReturnType<typeof vi.fn>).mock.calls[index]?.[0] as
+    | ReplyPayload
+    | undefined;
+}
+
 async function dispatchTwiceWithFreshDispatchers(params: Omit<DispatchReplyArgs, "dispatcher">) {
   await dispatchReplyFromConfig({
     ...params,
@@ -1086,7 +1095,7 @@ describe("dispatchReplyFromConfig", () => {
     );
   });
 
-  it("routes media-only tool results when summaries are suppressed", async () => {
+  it("routes tool results with media to originating channels", async () => {
     setNoAbort();
     mocks.routeReply.mockClear();
     const cfg = emptyConfig;
@@ -1125,7 +1134,7 @@ describe("dispatchReplyFromConfig", () => {
     expect(mocks.routeReply).toHaveBeenCalledTimes(1);
     const routed = mocks.routeReply.mock.calls[0]?.[0] as { payload?: ReplyPayload } | undefined;
     expect(routed?.payload?.mediaUrls).toEqual(["https://example.com/tts-routed.opus"]);
-    expect(routed?.payload?.text).toBeUndefined();
+    expect(routed?.payload?.text).toBe("NO_REPLY");
   });
 
   it("provides onToolResult in DM sessions", async () => {
@@ -1152,7 +1161,7 @@ describe("dispatchReplyFromConfig", () => {
     expect(dispatcher.sendFinalReply).toHaveBeenCalledTimes(1);
   });
 
-  it("suppresses group tool summaries but still forwards tool media", async () => {
+  it("delivers group tool summaries and forwards tool media", async () => {
     setNoAbort();
     const cfg = emptyConfig;
     const dispatcher = createDispatcher();
@@ -1177,10 +1186,12 @@ describe("dispatchReplyFromConfig", () => {
 
     await dispatchReplyFromConfig({ ctx, cfg, dispatcher, replyResolver });
 
-    expect(dispatcher.sendToolResult).toHaveBeenCalledTimes(1);
-    const sent = firstToolResultPayload(dispatcher);
-    expect(sent?.mediaUrls).toEqual(["https://example.com/tts-group.opus"]);
-    expect(sent?.text).toBeUndefined();
+    expect(dispatcher.sendToolResult).toHaveBeenCalledTimes(2);
+    const firstSent = nthToolResultPayload(dispatcher, 0);
+    const secondSent = nthToolResultPayload(dispatcher, 1);
+    expect(firstSent).toMatchObject({ text: "🔧 exec: ls" });
+    expect(secondSent?.mediaUrls).toEqual(["https://example.com/tts-group.opus"]);
+    expect(secondSent?.text).toBe("NO_REPLY");
     expect(dispatcher.sendFinalReply).toHaveBeenCalledTimes(1);
   });
 

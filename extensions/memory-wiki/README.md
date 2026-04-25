@@ -29,7 +29,7 @@ Put config under `plugins.entries.memory-wiki.config`:
 
   obsidian: {
     enabled: true,
-    useOfficialCli: true,
+    useOfficialCli: true, // auto-defaults to true only when `obsidian` CLI is available
     vaultName: "OpenClaw Wiki",
     openAfterWrites: false,
   },
@@ -56,7 +56,7 @@ Put config under `plugins.entries.memory-wiki.config`:
 
   search: {
     backend: "shared", // or "local"
-    corpus: "wiki", // or "memory" | "all"
+    corpus: "all", // or "wiki" | "memory"
   },
 
   context: {
@@ -129,6 +129,13 @@ openclaw wiki obsidian open syntheses/alpha-summary.md
 openclaw wiki obsidian command workspace:quick-switcher
 openclaw wiki obsidian daily
 ```
+
+Recommended ops loop:
+
+1. Run `openclaw wiki status` at session start.
+2. After bulk updates, run `openclaw wiki ingest` -> `openclaw wiki compile` -> `openclaw wiki lint`.
+3. For retrieval/edit flow, use `wiki_search` -> `wiki_get` -> `wiki_apply`.
+4. If top-20 search results show more than 10 low-relevance hits for several days, fallback default `search.corpus` to `wiki`.
 
 ## Agent tools
 

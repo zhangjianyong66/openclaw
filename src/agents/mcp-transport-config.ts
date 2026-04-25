@@ -14,6 +14,7 @@ import {
 type ResolvedBaseMcpTransportConfig = {
   description: string;
   connectionTimeoutMs: number;
+  requestTimeoutMs?: number;
 };
 
 export type ResolvedStdioMcpTransportConfig = ResolvedBaseMcpTransportConfig & {
@@ -48,6 +49,19 @@ function getConnectionTimeoutMs(rawServer: unknown): number {
     return (rawServer as { connectionTimeoutMs: number }).connectionTimeoutMs;
   }
   return DEFAULT_CONNECTION_TIMEOUT_MS;
+}
+
+function getRequestTimeoutMs(rawServer: unknown): number | undefined {
+  if (
+    rawServer &&
+    typeof rawServer === "object" &&
+    typeof (rawServer as { requestTimeoutMs?: unknown }).requestTimeoutMs === "number" &&
+    Number.isFinite((rawServer as { requestTimeoutMs: number }).requestTimeoutMs) &&
+    (rawServer as { requestTimeoutMs: number }).requestTimeoutMs > 0
+  ) {
+    return Math.floor((rawServer as { requestTimeoutMs: number }).requestTimeoutMs);
+  }
+  return undefined;
 }
 
 function getRequestedTransport(rawServer: unknown): string {
@@ -89,6 +103,7 @@ function resolveHttpTransportConfig(
     headers: launch.config.headers,
     description: describeHttpMcpServerLaunchConfig(launch.config),
     connectionTimeoutMs: getConnectionTimeoutMs(rawServer),
+    requestTimeoutMs: getRequestTimeoutMs(rawServer),
   };
 }
 
@@ -115,6 +130,7 @@ export function resolveMcpTransportConfig(
       cwd: stdioLaunch.config.cwd,
       description: describeStdioMcpServerLaunchConfig(stdioLaunch.config),
       connectionTimeoutMs: getConnectionTimeoutMs(rawServer),
+      requestTimeoutMs: getRequestTimeoutMs(rawServer),
     };
   }
 

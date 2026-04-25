@@ -36,6 +36,7 @@ const proxyEnvKeys = ["https_proxy", "HTTPS_PROXY", "http_proxy", "HTTP_PROXY"] 
 type ProxyEnvKey = (typeof proxyEnvKeys)[number];
 const registerFeishuDocToolsMock = vi.hoisted(() => vi.fn());
 const registerFeishuChatToolsMock = vi.hoisted(() => vi.fn());
+const registerFeishuMediaToolsMock = vi.hoisted(() => vi.fn());
 const registerFeishuWikiToolsMock = vi.hoisted(() => vi.fn());
 const registerFeishuDriveToolsMock = vi.hoisted(() => vi.fn());
 const registerFeishuPermToolsMock = vi.hoisted(() => vi.fn());
@@ -65,6 +66,10 @@ vi.mock("./docx.js", () => ({
 
 vi.mock("./chat.js", () => ({
   registerFeishuChatTools: registerFeishuChatToolsMock,
+}));
+
+vi.mock("./media-tool.js", () => ({
+  registerFeishuMediaTools: registerFeishuMediaToolsMock,
 }));
 
 vi.mock("./wiki.js", () => ({
@@ -105,6 +110,11 @@ const baseAccount: ResolvedFeishuAccount = {
   appSecret: "secret_123", // pragma: allowlist secret
   domain: "feishu",
   config: FeishuConfigSchema.parse({}),
+};
+
+const customDomainAccount: ResolvedFeishuAccount = {
+  ...baseAccount,
+  domain: "https://private-feishu.example.com",
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -244,8 +254,34 @@ describe("createFeishuClient HTTP timeout", () => {
     expect(mockBaseHttpInstance.post).toHaveBeenCalledWith(
       "https://example.com/api",
       { data: 1 },
-      expect.objectContaining({ timeout: FEISHU_HTTP_TIMEOUT_MS, headers: { "X-Custom": "yes" } }),
+      expect.objectContaining({
+        timeout: FEISHU_HTTP_TIMEOUT_MS,
+        headers: { "X-Custom": "yes" },
+        proxy: false,
+      }),
     );
+  });
+
+  it("keeps custom-domain HTTP requests proxy-capable", async () => {
+    process.env.HTTPS_PROXY = "http://upper-https:8002";
+
+    createFeishuClient({
+      appId: "app_custom",
+      appSecret: "secret_custom", // pragma: allowlist secret
+      accountId: "custom-domain-http",
+      domain: customDomainAccount.domain,
+    });
+
+    const httpInstance = getLastClientHttpInstance();
+    expect(httpInstance).toBeDefined();
+    await httpInstance?.get("https://example.com/api");
+
+    expect(mockBaseHttpInstance.get).toHaveBeenCalledWith(
+      "https://example.com/api",
+      expect.objectContaining({ timeout: FEISHU_HTTP_TIMEOUT_MS }),
+    );
+    const callOptions = mockBaseHttpInstance.get.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(callOptions).not.toHaveProperty("proxy", false);
   });
 
   it("allows explicit timeout override per-request", async () => {
@@ -361,17 +397,27 @@ describe("createFeishuWSClient proxy handling", () => {
   it("creates a ws proxy agent when lowercase https_proxy is set", async () => {
     process.env.https_proxy = "http://lower-https:8001";
 
-    await createFeishuWSClient(baseAccount);
+    await createFeishuWSClient(customDomainAccount);
 
     expect(proxyAgentCtorMock).toHaveBeenCalledTimes(1);
     const options = firstWsClientOptions();
     expect(options.agent).toEqual({ proxied: true });
   });
 
-  it("creates a ws proxy agent when uppercase HTTPS_PROXY is set", async () => {
+  it("does not use a ws proxy agent for official Feishu domains even when proxy env is set", async () => {
     process.env.HTTPS_PROXY = "http://upper-https:8002";
 
     await createFeishuWSClient(baseAccount);
+
+    expect(proxyAgentCtorMock).not.toHaveBeenCalled();
+    const options = firstWsClientOptions();
+    expect(options.agent).toBeUndefined();
+  });
+
+  it("creates a ws proxy agent when uppercase HTTPS_PROXY is set", async () => {
+    process.env.HTTPS_PROXY = "http://upper-https:8002";
+
+    await createFeishuWSClient(customDomainAccount);
 
     expect(proxyAgentCtorMock).toHaveBeenCalledTimes(1);
     const options = firstWsClientOptions();
@@ -381,7 +427,7 @@ describe("createFeishuWSClient proxy handling", () => {
   it("falls back to HTTP_PROXY for ws proxy agent creation", async () => {
     process.env.HTTP_PROXY = "http://upper-http:8999";
 
-    await createFeishuWSClient(baseAccount);
+    await createFeishuWSClient(customDomainAccount);
 
     expect(proxyAgentCtorMock).toHaveBeenCalledTimes(1);
     const options = firstWsClientOptions();

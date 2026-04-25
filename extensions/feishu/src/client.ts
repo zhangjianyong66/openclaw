@@ -95,14 +95,27 @@ const clientCache = new Map<
   }
 >();
 
-function resolveDomain(domain: FeishuDomain | undefined): Lark.Domain | string {
+function resolveDomain(domain: FeishuDomain | undefined): string {
   if (domain === "lark") {
-    return feishuClientSdk.Domain.Lark;
+    return "https://open.larksuite.com";
   }
   if (domain === "feishu" || !domain) {
-    return feishuClientSdk.Domain.Feishu;
+    return "https://open.feishu.cn";
   }
   return domain.replace(/\/+$/, ""); // Custom URL for private deployment
+}
+
+const FEISHU_PROXY_BYPASS_HOST_SUFFIXES = ["feishu.cn", "larksuite.com", "larkoffice.com"];
+
+function shouldBypassProxyForResolvedDomain(resolvedDomain: string): boolean {
+  try {
+    const hostname = new URL(resolvedDomain).hostname.toLowerCase();
+    return FEISHU_PROXY_BYPASS_HOST_SUFFIXES.some(
+      (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`),
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -110,11 +123,21 @@ function resolveDomain(domain: FeishuDomain | undefined): Lark.Domain | string {
  * but injects a default request timeout and User-Agent header to prevent
  * indefinite hangs and set a standardized User-Agent per OAPI best practices.
  */
-function createTimeoutHttpInstance(defaultTimeoutMs: number): Lark.HttpInstance {
+function createTimeoutHttpInstance(
+  defaultTimeoutMs: number,
+  resolvedDomain: string,
+): Lark.HttpInstance {
   const base: FeishuHttpInstanceLike = feishuClientSdk.defaultHttpInstance;
+  const bypassProxy = shouldBypassProxyForResolvedDomain(resolvedDomain);
 
   function injectTimeout<D>(opts?: Lark.HttpRequestOptions<D>): Lark.HttpRequestOptions<D> {
-    return { timeout: defaultTimeoutMs, ...opts } as Lark.HttpRequestOptions<D>;
+    const merged = { timeout: defaultTimeoutMs, ...opts } as Lark.HttpRequestOptions<D> & {
+      proxy?: false;
+    };
+    if (bypassProxy) {
+      merged.proxy = false;
+    }
+    return merged;
   }
 
   return {
@@ -180,6 +203,7 @@ function resolveConfiguredHttpTimeoutMs(creds: FeishuClientCredentials): number 
 export function createFeishuClient(creds: FeishuClientCredentials): Lark.Client {
   const { accountId = "default", appId, appSecret, domain } = creds;
   const defaultHttpTimeoutMs = resolveConfiguredHttpTimeoutMs(creds);
+  const resolvedDomain = resolveDomain(domain);
 
   if (!appId || !appSecret) {
     throw new Error(`Feishu credentials not configured for account "${accountId}"`);
@@ -202,8 +226,8 @@ export function createFeishuClient(creds: FeishuClientCredentials): Lark.Client 
     appId,
     appSecret,
     appType: feishuClientSdk.AppType.SelfBuild,
-    domain: resolveDomain(domain),
-    httpInstance: createTimeoutHttpInstance(defaultHttpTimeoutMs),
+    domain: resolvedDomain,
+    httpInstance: createTimeoutHttpInstance(defaultHttpTimeoutMs, resolvedDomain),
   });
 
   // Cache it
@@ -221,16 +245,19 @@ export function createFeishuClient(creds: FeishuClientCredentials): Lark.Client 
  */
 export async function createFeishuWSClient(account: ResolvedFeishuAccount): Promise<Lark.WSClient> {
   const { accountId, appId, appSecret, domain } = account;
+  const resolvedDomain = resolveDomain(domain);
 
   if (!appId || !appSecret) {
     throw new Error(`Feishu credentials not configured for account "${accountId}"`);
   }
 
-  const agent = await getWsProxyAgent();
+  const agent = shouldBypassProxyForResolvedDomain(resolvedDomain)
+    ? undefined
+    : await getWsProxyAgent();
   return new feishuClientSdk.WSClient({
     appId,
     appSecret,
-    domain: resolveDomain(domain),
+    domain: resolvedDomain,
     loggerLevel: feishuClientSdk.LoggerLevel.info,
     ...(agent ? { agent } : {}),
   });

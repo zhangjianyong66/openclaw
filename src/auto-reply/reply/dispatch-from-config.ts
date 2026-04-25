@@ -640,8 +640,8 @@ export async function dispatchReplyFromConfig(
       return { queuedFinal, counts };
     }
 
-    const shouldSendToolSummaries = ctx.ChatType !== "group" || ctx.IsForum === true;
-    const shouldSendToolStartStatuses = ctx.ChatType !== "group" || ctx.IsForum === true;
+    const shouldSendToolSummaries = true;
+    const shouldSendToolStartStatuses = true;
     const sendFinalPayload = async (
       payload: ReplyPayload,
     ): Promise<{ queuedFinal: boolean; routedFinalCount: number }> => {
@@ -876,8 +876,8 @@ export async function dispatchReplyFromConfig(
       if (execApproval && typeof execApproval === "object" && !Array.isArray(execApproval)) {
         return payload;
       }
-      // Group/native flows intentionally suppress tool summary text, but media-only
-      // tool results (for example TTS audio) must still be delivered.
+      // When tool summaries are suppressed by policy, media-only tool results
+      // (for example TTS audio) must still be delivered.
       const hasMedia = resolveSendableOutboundReplyParts(payload).hasMedia;
       if (!hasMedia) {
         return null;

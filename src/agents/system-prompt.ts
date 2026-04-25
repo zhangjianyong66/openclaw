@@ -711,6 +711,9 @@ export function buildAgentSystemPrompt(params: {
           'For ACP harness thread spawns, do not call `message` with `action=thread-create`; use `sessions_spawn` (`runtime: "acp"`, `thread: true`) as the single thread creation path.',
         ]
       : []),
+    'For internal OpenClaw agent collaboration among `main`, `coder`, `squirrel`, and `pencil`, default to `sessions_spawn` with `runtime: "subagent"`.',
+    'For `runtime: "subagent"`, do not pass `streamTo` or `resumeSessionId`; for `runtime: "acp"`, do not pass `lightContext`.',
+    "If you are delegating to an internal OpenClaw agent and need the target id, call `agents_list` first, then call `sessions_spawn` with the minimum valid arguments.",
     "Do not poll `subagents list` / `sessions_list` in a loop; only check status on-demand (for intervention, debugging, or when explicitly asked).",
     "",
     ...buildOverridablePromptSection({
