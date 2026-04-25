@@ -195,6 +195,26 @@ Feishu/Lark does not support native slash-command menus, so send these as plain 
 
 ---
 
+## Feishu chat tool
+
+The built-in `feishu_chat` tool supports both read and group-management actions:
+
+- Read: `list`, `get`, `info`, `members`, `member_info`
+- Write: `create`, `rename`, `delete`, `add_members`, `remove_members`
+
+Common parameters:
+
+- `accountId` (optional): route the action to a named Feishu account
+- `chat_id`: target group id (`oc_xxx`) for `get`/`info`/`members`/`rename`/`delete`/member changes
+- `user_ids`: member `open_id` list for `create`/`add_members`/`remove_members`
+- `new_name`: new group name for `rename`
+
+`create` automatically includes the current sender `open_id` when tool context provides it.
+
+Write actions are destructive for live groups. Restrict tool access when needed and validate targets before `delete` or member removals.
+
+---
+
 ## Troubleshooting
 
 ### Bot does not respond in group chats
