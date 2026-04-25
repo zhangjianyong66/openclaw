@@ -1,4 +1,4 @@
-import { Type, type Static } from "@sinclair/typebox";
+import { Type, type Static } from "typebox";
 
 const FEISHU_MEDIA_ACTION_VALUES = ["download"] as const;
 const FEISHU_MEDIA_RESOURCE_TYPE_VALUES = ["image", "file"] as const;
