@@ -1,4 +1,8 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { writeBundleProbeMcpServer } from "./bundle-mcp-shared.test-harness.js";
 import { createBundleMcpJsonSchemaValidator } from "./pi-bundle-mcp-runtime.js";
 import { cleanupBundleMcpHarness } from "./pi-bundle-mcp-test-harness.js";
 import {
@@ -21,6 +25,10 @@ type RuntimeFactoryOptions = NonNullable<
   Parameters<typeof __testing.createSessionMcpRuntimeManager>[0]
 >;
 type RuntimeFactory = NonNullable<RuntimeFactoryOptions["createRuntime"]>;
+
+async function makeTempDir(prefix: string): Promise<string> {
+  return await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+}
 
 function makeRuntime(
   tools: Array<{ toolName: string; description: string }>,
