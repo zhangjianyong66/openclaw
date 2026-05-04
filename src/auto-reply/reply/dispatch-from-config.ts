@@ -77,6 +77,7 @@ import type { BlockReplyContext } from "../get-reply-options.types.js";
 import { getReplyPayloadMetadata, type ReplyPayload } from "../reply-payload.js";
 import type { FinalizedMsgContext } from "../templating.js";
 import { normalizeVerboseLevel } from "../thinking.js";
+import { isSilentReplyPayloadText } from "../tokens.js";
 import { resolveConversationBindingContextFromMessage } from "./conversation-binding-input.js";
 import {
   createInternalHookEvent,
@@ -929,7 +930,10 @@ export async function dispatchReplyFromConfig(
     }
 
     const shouldSendToolSummaries = true;
-    const shouldSendToolStartStatuses = true;
+    const shouldSendVerboseProgressMessages = !(
+      normalizeMessageChannel(ctx.Surface ?? ctx.Provider) === "slack" && chatType !== "direct"
+    );
+    const shouldSendToolStartStatuses = shouldSendVerboseProgressMessages;
     const sendFinalPayload = async (
       payload: ReplyPayload,
     ): Promise<{ queuedFinal: boolean; routedFinalCount: number }> => {
@@ -1175,6 +1179,10 @@ export async function dispatchReplyFromConfig(
       ) {
         return null;
       }
+      const sendable = resolveSendableOutboundReplyParts(payload);
+      if (!sendable.hasMedia && isSilentReplyPayloadText(payload.text)) {
+        return null;
+      }
       if (shouldSendToolSummaries) {
         return payload;
       }
@@ -1189,8 +1197,7 @@ export async function dispatchReplyFromConfig(
       }
       // Group/native flows intentionally suppress tool summary text, but media-only
       // tool results (for example TTS audio) must still be delivered.
-      const hasMedia = resolveSendableOutboundReplyParts(payload).hasMedia;
-      if (!hasMedia) {
+      if (!sendable.hasMedia) {
         return null;
       }
       return { ...payload, text: undefined };
