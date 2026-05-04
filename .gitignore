@@ -157,3 +157,6 @@ extensions/qa-lab/web/dist/
 # Generated bundled plugin runtime dependency manifests
 extensions/**/.openclaw-runtime-deps.json
 extensions/**/.openclaw-runtime-deps-stamp.json
+
+# Local SQLite scratch DB
+memory.db
